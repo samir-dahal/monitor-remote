@@ -4,6 +4,10 @@ A phone remote for your monitor. It pairs with [BenQ Bridge](../README.md) on yo
 any monitor that answers DDC/CI, not only BenQ ones. It talks to the same HTTP and WebSocket API as
 the web page, so the PC side needs no changes.
 
+<p align="center">
+  <img src="../docs/screenshot-mobile.jpg" alt="Monitor Remote: a tall brightness fader, tiles for blue light, input and picture mode, and scene buttons" width="300">
+</p>
+
 ## What it does
 
 One screen that fits without scrolling, built for a quick adjustment from the couch:
