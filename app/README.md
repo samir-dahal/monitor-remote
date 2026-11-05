@@ -27,7 +27,7 @@ such as `0x0F`), every other setting, theme, and the factory reset behind a hold
 ## Install
 
 Download the APK from the
-[Android releases](https://github.com/samir-dahal/benq-bridge/releases?q=app-v&expanded=true)
+[Android releases](https://github.com/samir-dahal/monitor-remote/releases?q=app-v&expanded=true)
 (tags start with `app-v`) and open it on your phone. Android 7.0 or newer.
 
 ## Releases are built on GitHub

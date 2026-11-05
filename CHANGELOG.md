@@ -15,6 +15,7 @@ First release of the phone app, in `app/`.
 - Factory and colour reset behind a hold-to-confirm button.
 - Built, tested and signed by GitHub Actions when an `app-v*` tag is pushed.
 - The Windows release is unchanged; `app/` is excluded from its build.
+- The GitHub repository is now `samir-dahal/monitor-remote` (the old `benq-bridge` address redirects). The Windows app keeps the name BenQ Bridge.
 
 ## 0.1.0
 

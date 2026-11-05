@@ -67,7 +67,7 @@ Write-Host "Building BenQ Bridge $version from commit $commit"
 
 # --- 2. clean clone + publish --------------------------------------------------------------
 
-$work = Join-Path ([IO.Path]::GetTempPath()) ("benq-bridge-release-" + [Guid]::NewGuid().ToString('N'))
+$work = Join-Path ([IO.Path]::GetTempPath()) ("monitor-remote-release-" + [Guid]::NewGuid().ToString('N'))
 $source = Join-Path $work 'src'
 $publish = Join-Path $work 'publish'
 

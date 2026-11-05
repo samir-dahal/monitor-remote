@@ -46,7 +46,7 @@ hidden.
 ## Download and run
 
 1. Download `BenqBridge-win-x64.zip` from the
-   [latest release](https://github.com/samir-dahal/benq-bridge/releases/latest) and unzip it.
+   [latest release](https://github.com/samir-dahal/monitor-remote/releases/latest) and unzip it.
 2. Run `BenqBridge.exe`. Keep the `wwwroot` folder next to it. There is no console window;
    the app lives in the notification area (the tray) as a small monitor icon.
 3. Windows may show a SmartScreen warning because the exe is not code-signed. Choose
@@ -96,8 +96,8 @@ You can also open a LAN URL on your phone by hand and enter the token once.
 ## Run from source
 
 ```powershell
-git clone https://github.com/samir-dahal/benq-bridge
-cd benq-bridge
+git clone https://github.com/samir-dahal/monitor-remote
+cd monitor-remote
 dotnet run
 ```
 
@@ -132,7 +132,7 @@ scenes. You pair it by scanning the QR code on the PC. It uses the same HTTP and
 the PC side needs nothing extra.
 
 Download the APK from the
-[Android releases](https://github.com/samir-dahal/benq-bridge/releases?q=app-v&expanded=true)
+[Android releases](https://github.com/samir-dahal/monitor-remote/releases?q=app-v&expanded=true)
 (tags start with `app-v`). Those releases are built, tested and signed by GitHub Actions when a tag
 is pushed. See [app/README.md](app/README.md) and the decision records on
 [Flutter](docs/adr/0001-flutter-mobile-app.md) and
