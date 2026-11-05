@@ -1,12 +1,20 @@
-# BenQ Bridge
+# Monitor Remote
 
-A local DDC/CI (MCCS) monitor controller with a mobile-friendly web UI.
-It talks to your monitor directly through `dxva2.dll` — no BenQ software, no
-driver, no cloud service, no telemetry.
+Control your monitor from your phone: brightness, input, picture mode, low blue light and
+more, over your local network. It works with any monitor that supports DDC/CI (MCCS), not
+only BenQ, and needs no vendor software, no driver, no cloud service and no telemetry.
 
-Built by reverse engineering BenQ Eye-CareU, which turns out to be doing exactly
-the same thing internally (`GetPhysicalMonitorsFromHMONITOR`, `GetVCPFeatureAndVCPFeatureReply`,
-`SetVCPFeature`) but exposes only a curated subset of what the panel supports.
+It has two parts:
+
+| Part | Runs on | What it does |
+|---|---|---|
+| **BenQ Bridge** (`BenqBridge.exe`) | Windows PC | Talks to the monitor through `dxva2.dll`, and serves a small API, a web page and the pairing QR code |
+| **Monitor Remote** app | Android | The remote itself: a brightness fader, tiles for the everyday settings, and scenes. [Download it](https://github.com/samir-dahal/monitor-remote/releases?q=app-v&expanded=true) |
+
+The PC part keeps the name BenQ Bridge because it started as a reverse engineering of BenQ
+Eye-CareU, which turns out to do exactly the same thing internally
+(`GetPhysicalMonitorsFromHMONITOR`, `GetVCPFeatureAndVCPFeatureReply`, `SetVCPFeature`) but
+exposes only a curated subset of what the panel supports.
 
 <p align="center">
   <img src="docs/monitor-remote-android.jpg" alt="Monitor Remote on Android: a tall brightness fader at 25%, tiles for blue light, input and picture mode, and scene buttons, controlling a BenQ GW2490" width="320">
@@ -35,7 +43,7 @@ Features are discovered at runtime from the monitor, not hardcoded, so unknown
 or newer codes still show up under **Advanced / raw VCP codes** instead of being
 hidden.
 
-## Requirements
+## PC requirements
 
 - Windows 10/11
 - DDC/CI enabled in the monitor's OSD (on by default for BenQ)
@@ -43,7 +51,7 @@ hidden.
   to install .NET.
 - To build from source: the .NET 10 SDK
 
-## Download and run
+## Set up the PC
 
 1. Download `BenqBridge-win-x64.zip` from the
    [latest release](https://github.com/samir-dahal/monitor-remote/releases/latest) and unzip it.
@@ -93,7 +101,7 @@ console):
 
 You can also open a LAN URL on your phone by hand and enter the token once.
 
-## Run from source
+## Run the PC side from source
 
 ```powershell
 git clone https://github.com/samir-dahal/monitor-remote
@@ -112,7 +120,7 @@ dotnet run
 | `--install` / `--uninstall` | | add or remove the Start with Windows entry, then exit |
 | `--stop` | | ask the running copy to quit, then exit |
 
-## Build a release
+## Build the Windows release
 
 ```powershell
 .\scriptselease.ps1
@@ -124,9 +132,9 @@ It then checks that the output holds only `BenqBridge.exe` and web assets, scans
 any pairing token found on your machine, and writes `dist\BenqBridge-win-x64.zip` with its
 SHA-256. It uploads nothing; it prints the `gh release create` command for you to run.
 
-## Android app: Monitor Remote
+## The Android app
 
-**Monitor Remote** is the phone app for BenQ Bridge, in `app/`. It works with any DDC/CI monitor.
+**Monitor Remote** is the phone app, in `app/`. It pairs with BenQ Bridge on your PC and works with any DDC/CI monitor.
 One screen holds a tall brightness fader, tiles for blue light, input and picture mode, and one-tap
 scenes. You pair it by scanning the QR code on the PC. It uses the same HTTP and WebSocket API, so
 the PC side needs nothing extra.
