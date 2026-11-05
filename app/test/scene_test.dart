@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:benq_bridge/data/models.dart';
-import 'package:benq_bridge/state/scene.dart';
+import 'package:monitor_remote/data/models.dart';
+import 'package:monitor_remote/state/scene.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fakes.dart';

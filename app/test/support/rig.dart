@@ -1,6 +1,7 @@
-import 'package:benq_bridge/data/app_storage.dart';
-import 'package:benq_bridge/data/pairing_link.dart';
-import 'package:benq_bridge/state/bridge_controller.dart';
+import 'package:monitor_remote/data/app_storage.dart';
+import 'package:monitor_remote/data/models.dart';
+import 'package:monitor_remote/data/pairing_link.dart';
+import 'package:monitor_remote/state/bridge_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,6 +26,7 @@ Future<Rig> makeRig({
   MemorySecretStore? secrets,
   Duration writeDelay = Duration.zero,
   bool disposeAtEnd = true,
+  List<Monitor>? snapshot,
 }) async {
   final memory = secrets ?? MemorySecretStore();
   final store = storage ?? AppStorage(await _prefs(), memory);
@@ -32,6 +34,7 @@ Future<Rig> makeRig({
   pc.writeDelay = writeDelay;
 
   if (paired) await store.saveLink(testLink);
+  if (snapshot != null) await store.saveSnapshot(snapshot);
 
   final controller = BridgeController(
     storage: store,
@@ -40,6 +43,7 @@ Future<Rig> makeRig({
     retryMax: const Duration(milliseconds: 20),
     writeGap: const Duration(milliseconds: 5),
     resetSettleDelay: Duration.zero,
+    snapshotDelay: const Duration(milliseconds: 10),
   );
   if (disposeAtEnd) addTearDown(controller.dispose);
 

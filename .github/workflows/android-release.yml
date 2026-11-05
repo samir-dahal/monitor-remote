@@ -1,0 +1,138 @@
+name: Android release
+
+# Push a tag such as app-v0.1.0 to build, test, sign and publish the APK.
+# "Run workflow" on the Actions tab builds and tests without publishing.
+on:
+  push:
+    tags:
+      - 'app-v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish the APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+          cache: true
+
+      - name: Check the tag matches the app version
+        id: version
+        run: |
+          version=$(sed -nE 's/^version: *([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' pubspec.yaml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "app-v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version in app/pubspec.yaml. Tag app-v$version instead, or bump the version."
+            exit 1
+          fi
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+      - name: Set up release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" ]]; then
+            if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+              echo "::error::The ANDROID_* signing secrets are missing. A release must be signed with the release key."
+              exit 1
+            fi
+            echo "::warning::No signing secrets, so this build is signed with a throwaway debug key."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Build the APK
+        run: flutter build apk --release
+
+      - name: Check the signature
+        if: github.ref_type == 'tag'
+        run: |
+          apksigner="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          certs=$("$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk)
+          echo "$certs" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          if echo "$certs" | grep -q "CN=Android Debug"; then
+            echo "::error::The APK is signed with a debug key."
+            exit 1
+          fi
+
+      - name: Name the APK
+        id: apk
+        run: |
+          name="monitor-remote-${{ steps.version.outputs.version }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$name"
+          sha256sum "$name" > "$name.sha256"
+          cat "$name.sha256"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: monitor-remote-apk
+          path: |
+            app/${{ steps.apk.outputs.name }}
+            app/${{ steps.apk.outputs.name }}.sha256
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          APK: ${{ steps.apk.outputs.name }}
+        run: |
+          sha=$(cut -d' ' -f1 "$APK.sha256")
+          {
+            echo "Monitor Remote $VERSION for Android: control your monitor from your phone."
+            echo
+            echo "**Install**"
+            echo "1. Download \`$APK\` on your phone and open it. Android asks you to allow installs from your browser or file manager the first time."
+            echo "2. On your PC, run BenQ Bridge 0.1.0 or newer (the Windows download is in the latest release)."
+            echo "3. Scan the QR code on the PC's pairing page."
+            echo
+            echo "Needs Android 7.0 or newer. Your phone and PC must be on the same Wi-Fi."
+            echo
+            echo "SHA-256 of \`$APK\`:"
+            echo "\`$sha\`"
+            echo
+            echo "See the [changelog](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md)."
+          } > notes.md
+          # Not marked latest, so the README's "latest release" link keeps pointing at the Windows download.
+          gh release create "$GITHUB_REF_NAME" "$APK" "$APK.sha256" \
+            --title "Monitor Remote $VERSION for Android" \
+            --notes-file notes.md \
+            --latest=false

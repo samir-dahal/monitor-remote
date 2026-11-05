@@ -80,7 +80,9 @@ class _FeatureTile extends StatelessWidget {
     return SurfaceCard(
       child: Row(
         children: [
-          Expanded(child: Text(feature.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+          Expanded(
+            child: Text(feature.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          ),
           Text(feature.value?.toString() ?? '—', style: TextStyle(color: c.muted, fontSize: 15)),
         ],
       ),

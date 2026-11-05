@@ -36,8 +36,9 @@ class BridgeController extends ChangeNotifier {
     this.retryMax = const Duration(seconds: 10),
     this.writeGap = const Duration(milliseconds: 60),
     this.resetSettleDelay = const Duration(seconds: 4),
-  })  : _storage = storage,
-        _apiFactory = apiFactory;
+    this.snapshotDelay = const Duration(seconds: 2),
+  }) : _storage = storage,
+       _apiFactory = apiFactory;
 
   final AppStorage _storage;
   final BridgeApiFactory _apiFactory;
@@ -45,6 +46,7 @@ class BridgeController extends ChangeNotifier {
   final Duration retryMax;
   final Duration writeGap;
   final Duration resetSettleDelay;
+  final Duration snapshotDelay;
 
   final _messages = StreamController<String>.broadcast();
 
@@ -65,10 +67,15 @@ class BridgeController extends ChangeNotifier {
   final Map<String, int> _desired = {};
   final Map<String, Future<void>> _pumps = {};
   final Set<int> _editing = {};
+  Timer? _snapshotTimer;
 
   // ---------------------------------------------------------------- read side
 
   LinkState get linkState => _state;
+
+  /// Controls only act while the PC is answering. Before that, the screen shows the last
+  /// known values so the app doesn't open on a spinner.
+  bool get canControl => _state == LinkState.live;
 
   PairingLink? get link => _link;
 
@@ -76,7 +83,10 @@ class BridgeController extends ChangeNotifier {
 
   List<Monitor> get monitors => _monitors;
 
-  List<Monitor> get usableMonitors => [for (final m in _monitors) if (m.usable) m];
+  List<Monitor> get usableMonitors => [
+    for (final m in _monitors)
+      if (m.usable) m,
+  ];
 
   /// The monitor on screen: the chosen one, else the first that actually answered.
   Monitor? get monitor {
@@ -109,6 +119,10 @@ class BridgeController extends ChangeNotifier {
     _themeMode = _storage.loadThemeMode();
     _selectedId = _storage.selectedMonitor;
     _link = await _storage.loadLink();
+    if (_link != null) {
+      _monitors = _storage.loadSnapshot();
+      _state = LinkState.connecting;
+    }
     notifyListeners();
 
     if (_link != null) _startLoop();
@@ -165,6 +179,7 @@ class BridgeController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _snapshotTimer?.cancel();
     _stopLoop();
     unawaited(_messages.close());
     super.dispose();
@@ -274,7 +289,10 @@ class BridgeController extends ChangeNotifier {
   }
 
   Future<void> deleteScene(String id) async {
-    _scenes = [for (final s in _scenes) if (s.id != id) s];
+    _scenes = [
+      for (final s in _scenes)
+        if (s.id != id) s,
+    ];
     notifyListeners();
     await _storage.saveScenes(_scenes);
   }
@@ -401,11 +419,22 @@ class BridgeController extends ChangeNotifier {
     _monitors = merged;
     _reconcileSelection();
     notifyListeners();
+    _scheduleSnapshot();
+  }
+
+  /// Saves what the PC reported, at most once per [snapshotDelay], for the next launch.
+  void _scheduleSnapshot() {
+    if (_snapshotTimer?.isActive ?? false) return;
+    _snapshotTimer = Timer(snapshotDelay, () {
+      if (!_disposed && _link != null) unawaited(_storage.saveSnapshot(_monitors));
+    });
   }
 
   bool _isBusy(String monitorId, int code) {
     final key = '$monitorId|$code';
-    return _desired.containsKey(key) || _pumps.containsKey(key) || (monitor?.id == monitorId && _editing.contains(code));
+    return _desired.containsKey(key) ||
+        _pumps.containsKey(key) ||
+        (monitor?.id == monitorId && _editing.contains(code));
   }
 
   void _reconcileSelection() {

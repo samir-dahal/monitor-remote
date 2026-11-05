@@ -73,15 +73,20 @@ class _OptionRow extends StatelessWidget {
       subtitle: custom == null ? null : Text('The monitor calls it ${option.label}', style: TextStyle(color: c.muted)),
       trailing: Icon(Icons.edit_outlined, color: c.muted),
       onTap: () async {
-        final name = await showDialog<String>(
-          context: context,
-          builder: (_) => _RenameDialog(original: option.label, current: custom ?? ''),
-        );
+        final name = await showRenameDialog(context, original: option.label, current: custom ?? '');
         if (name != null) await controller.setLabel(monitor, feature.code, option.value, name);
       },
     );
   }
 }
+
+/// Asks for a new name. Returns the name, an empty string for "use the original", or null
+/// when cancelled.
+Future<String?> showRenameDialog(BuildContext context, {required String original, required String current}) =>
+    showDialog<String>(
+      context: context,
+      builder: (_) => _RenameDialog(original: original, current: current),
+    );
 
 class _RenameDialog extends StatefulWidget {
   const _RenameDialog({required this.original, required this.current});
@@ -115,7 +120,8 @@ class _RenameDialogState extends State<_RenameDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        if (widget.current.isNotEmpty) TextButton(onPressed: () => Navigator.pop(context, ''), child: const Text('Use original')),
+        if (widget.current.isNotEmpty)
+          TextButton(onPressed: () => Navigator.pop(context, ''), child: const Text('Use original')),
         TextButton(onPressed: () => Navigator.pop(context, _name.text), child: const Text('Save')),
       ],
     );

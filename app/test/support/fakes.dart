@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:benq_bridge/data/app_storage.dart';
-import 'package:benq_bridge/data/bridge_api.dart';
-import 'package:benq_bridge/data/models.dart';
+import 'package:monitor_remote/data/app_storage.dart';
+import 'package:monitor_remote/data/bridge_api.dart';
+import 'package:monitor_remote/data/models.dart';
 
 class MemorySecretStore implements SecretStore {
   final Map<String, String> data = {};
@@ -82,71 +82,71 @@ class FakeBridgeApi implements BridgeApi {
 
 /// A monitor shaped like the BenQ GW2490 the app was developed against.
 Monitor sampleMonitor({int brightness = 25, int pictureMode = 0, int blueLight = 1, int input = 17}) => Monitor(
-      id: 'DISPLAY4',
-      name: 'BenQ GW2490',
-      model: 'GW2490',
-      supported: true,
-      ddcChannel: true,
-      features: [
-        Feature(
-          code: VcpCodes.brightness,
-          name: 'Brightness',
-          category: 'Picture',
-          kind: FeatureKind.continuous,
-          writable: true,
-          max: 100,
-          unit: '%',
-          value: brightness,
-        ),
-        Feature(
-          code: VcpCodes.pictureMode,
-          name: 'Picture Mode',
-          category: 'Picture',
-          kind: FeatureKind.discrete,
-          writable: true,
-          max: 50,
-          value: pictureMode,
-          options: const [
-            VcpOption(value: 0, label: 'Standard'),
-            VcpOption(value: 15, label: '0x0F'),
-            VcpOption(value: 40, label: 'Game'),
-            VcpOption(value: 50, label: 'Cinema'),
-          ],
-        ),
-        Feature(
-          code: VcpCodes.lowBlueLight,
-          name: 'Low Blue Light',
-          category: 'Eye Care',
-          kind: FeatureKind.discrete,
-          writable: true,
-          max: 5,
-          value: blueLight,
-          options: [for (var i = 0; i <= 5; i++) VcpOption(value: i, label: i == 0 ? 'Off' : 'Level $i')],
-        ),
-        Feature(
-          code: VcpCodes.inputSource,
-          name: 'Input Source',
-          category: 'Input',
-          kind: FeatureKind.discrete,
-          writable: true,
-          max: 18,
-          value: input,
-          options: const [
-            VcpOption(value: 15, label: 'DisplayPort'),
-            VcpOption(value: 17, label: 'HDMI-1'),
-            VcpOption(value: 18, label: 'HDMI-2'),
-          ],
-        ),
-        const Feature(
-          code: VcpCodes.restoreFactoryDefaults,
-          name: 'Restore Factory Defaults',
-          category: 'System',
-          kind: FeatureKind.action,
-          writable: true,
-          max: 0,
-        ),
+  id: 'DISPLAY4',
+  name: 'BenQ GW2490',
+  model: 'GW2490',
+  supported: true,
+  ddcChannel: true,
+  features: [
+    Feature(
+      code: VcpCodes.brightness,
+      name: 'Brightness',
+      category: 'Picture',
+      kind: FeatureKind.continuous,
+      writable: true,
+      max: 100,
+      unit: '%',
+      value: brightness,
+    ),
+    Feature(
+      code: VcpCodes.pictureMode,
+      name: 'Picture Mode',
+      category: 'Picture',
+      kind: FeatureKind.discrete,
+      writable: true,
+      max: 50,
+      value: pictureMode,
+      options: const [
+        VcpOption(value: 0, label: 'Standard'),
+        VcpOption(value: 15, label: '0x0F'),
+        VcpOption(value: 40, label: 'Game'),
+        VcpOption(value: 50, label: 'Cinema'),
       ],
-    );
+    ),
+    Feature(
+      code: VcpCodes.lowBlueLight,
+      name: 'Low Blue Light',
+      category: 'Eye Care',
+      kind: FeatureKind.discrete,
+      writable: true,
+      max: 5,
+      value: blueLight,
+      options: [for (var i = 0; i <= 5; i++) VcpOption(value: i, label: i == 0 ? 'Off' : 'Level $i')],
+    ),
+    Feature(
+      code: VcpCodes.inputSource,
+      name: 'Input Source',
+      category: 'Input',
+      kind: FeatureKind.discrete,
+      writable: true,
+      max: 18,
+      value: input,
+      options: const [
+        VcpOption(value: 15, label: 'DisplayPort'),
+        VcpOption(value: 17, label: 'HDMI-1'),
+        VcpOption(value: 18, label: 'HDMI-2'),
+      ],
+    ),
+    const Feature(
+      code: VcpCodes.restoreFactoryDefaults,
+      name: 'Restore Factory Defaults',
+      category: 'System',
+      kind: FeatureKind.action,
+      writable: true,
+      max: 0,
+    ),
+  ],
+);
 
 /// The laptop panel: enumerated, but with no DDC/CI to talk to.
 const laptopPanel = Monitor(

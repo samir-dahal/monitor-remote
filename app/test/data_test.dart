@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:benq_bridge/data/models.dart';
-import 'package:benq_bridge/data/pairing_link.dart';
+import 'package:monitor_remote/data/models.dart';
+import 'package:monitor_remote/data/pairing_link.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Trimmed from a real /api/monitors response.
@@ -149,5 +149,18 @@ void main() {
 
     expect(a, b);
     expect(a.hashCode, b.hashCode);
+  });
+
+  test('a monitor survives a JSON round trip for the snapshot', () {
+    final original = Monitor.fromJson(jsonDecode(_serverJson)[1] as Map<String, dynamic>);
+    final restored = Monitor.fromJson(jsonDecode(jsonEncode(original.toJson())) as Map<String, dynamic>);
+
+    expect(restored.name, original.name);
+    expect(restored.model, original.model);
+    expect(restored.usable, isTrue);
+    expect(restored.features.length, original.features.length);
+    expect(restored.feature(VcpCodes.brightness)!.unit, '%');
+    expect(restored.feature(VcpCodes.lowBlueLight)!.optionFor(1)!.label, 'Level 1');
+    expect(restored.feature(VcpCodes.restoreFactoryDefaults)!.isAction, isTrue);
   });
 }

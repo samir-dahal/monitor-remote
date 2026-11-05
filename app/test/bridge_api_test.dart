@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:benq_bridge/data/bridge_api.dart';
-import 'package:benq_bridge/data/models.dart';
+import 'package:monitor_remote/data/bridge_api.dart';
+import 'package:monitor_remote/data/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -107,9 +107,11 @@ void main() {
 
       await expectLater(
         api.writeVcp('DISPLAY4', VcpCodes.pictureMode, 99),
-        throwsA(isA<BridgeException>()
-            .having((e) => e.message, 'message', 'value not in the advertised set')
-            .having((e) => e.unauthorized, 'unauthorized', isFalse)),
+        throwsA(
+          isA<BridgeException>()
+              .having((e) => e.message, 'message', 'value not in the advertised set')
+              .having((e) => e.unauthorized, 'unauthorized', isFalse),
+        ),
       );
     });
 

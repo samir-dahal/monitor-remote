@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../state/scene.dart';
+import 'models.dart';
 import 'pairing_link.dart';
 
 /// Holds the access token. Kept apart from ordinary preferences so it can live in the
@@ -45,6 +46,7 @@ class AppStorage {
   static const _scenes = 'scenes';
   static const _labels = 'labels';
   static const _themeMode = 'theme.mode';
+  static const _snapshot = 'monitors.snapshot';
 
   final SharedPreferences _prefs;
   final SecretStore _secrets;
@@ -67,7 +69,23 @@ class AppStorage {
   Future<void> clearLink() async {
     await _prefs.remove(_linkUrl);
     await _secrets.delete(_linkToken);
+    await _prefs.remove(_snapshot);
   }
+
+  /// The monitors as last seen, so the app can show them the moment it opens.
+  List<Monitor> loadSnapshot() {
+    final raw = _prefs.getString(_snapshot);
+    if (raw == null) return const [];
+
+    try {
+      return [for (final item in jsonDecode(raw) as List<dynamic>) Monitor.fromJson(item as Map<String, dynamic>)];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> saveSnapshot(List<Monitor> monitors) =>
+      _prefs.setString(_snapshot, jsonEncode([for (final monitor in monitors) monitor.toJson()]));
 
   String? get selectedMonitor => _prefs.getString(_selectedMonitor);
 
@@ -79,9 +97,7 @@ class AppStorage {
     if (raw == null) return Scene.starters();
 
     try {
-      return [
-        for (final item in jsonDecode(raw) as List<dynamic>) Scene.fromJson(item as Map<String, dynamic>),
-      ];
+      return [for (final item in jsonDecode(raw) as List<dynamic>) Scene.fromJson(item as Map<String, dynamic>)];
     } catch (_) {
       return Scene.starters();
     }
@@ -105,10 +121,10 @@ class AppStorage {
   Future<void> saveLabels(Map<String, String> labels) => _prefs.setString(_labels, jsonEncode(labels));
 
   ThemeMode loadThemeMode() => switch (_prefs.getString(_themeMode)) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
-      };
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 
   Future<void> saveThemeMode(ThemeMode mode) => _prefs.setString(_themeMode, mode.name);
 }

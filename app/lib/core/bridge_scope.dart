@@ -6,7 +6,7 @@ import '../state/bridge_controller.dart';
 /// whenever the controller changes; [read] gets it without subscribing.
 class BridgeScope extends InheritedNotifier<BridgeController> {
   const BridgeScope({super.key, required BridgeController controller, required super.child})
-      : super(notifier: controller);
+    : super(notifier: controller);
 
   static BridgeController of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<BridgeScope>();

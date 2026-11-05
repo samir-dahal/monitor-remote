@@ -1,4 +1,4 @@
-package dev.samirdahal.benq_bridge
+package dev.samirdahal.monitorremote
 
 import io.flutter.embedding.android.FlutterActivity
 

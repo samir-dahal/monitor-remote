@@ -8,7 +8,8 @@ import '../state/bridge_controller.dart';
 import '../state/scene.dart';
 import 'widgets/scene_icons.dart';
 
-/// Scenes: saved picture settings that apply in one tap.
+/// All scenes, with room to rename, update and delete them. Opened from Settings or from
+/// the scene bar; applying a scene happens on the main screen.
 class ScenesScreen extends StatelessWidget {
   const ScenesScreen({super.key});
 
@@ -18,13 +19,11 @@ class ScenesScreen extends StatelessWidget {
     final monitor = controller.monitor;
     final c = context.colors;
 
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Scenes')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
-          const Text('Scenes', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
           Text(
             'One tap sets brightness, picture mode and blue light. Scenes are saved on this phone.',
             style: TextStyle(color: c.muted, fontSize: 14, height: 1.4),
@@ -34,23 +33,100 @@ class ScenesScreen extends StatelessWidget {
             _SceneCard(scene: scene, monitor: monitor, controller: controller),
             const SizedBox(height: 10),
           ],
-          _AddSceneButton(enabled: monitor != null, onPressed: () => _create(context, controller, monitor!)),
+          _AddSceneButton(enabled: monitor != null, onPressed: () => saveCurrentAsScene(context, controller, monitor!)),
         ],
       ),
     );
   }
+}
 
-  Future<void> _create(BuildContext context, BridgeController controller, Monitor monitor) async {
-    final result = await showSceneEditor(context, title: 'Save current settings');
-    if (result == null) return;
+/// Asks for a name and icon, then saves the monitor's current picture settings as a scene.
+Future<void> saveCurrentAsScene(BuildContext context, BridgeController controller, Monitor monitor) async {
+  final result = await showSceneEditor(context, title: 'Save current settings');
+  if (result == null) return;
 
-    await controller.saveScene(Scene.capture(
-      monitor,
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: result.name,
-      icon: result.icon,
-    ));
+  await controller.saveScene(
+    Scene.capture(monitor, id: DateTime.now().microsecondsSinceEpoch.toString(), name: result.name, icon: result.icon),
+  );
+}
+
+enum SceneAction { edit, update, delete }
+
+/// Rename, update or delete [scene]. Delete asks first.
+Future<void> runSceneAction(
+  BuildContext context,
+  BridgeController controller,
+  Scene scene,
+  Monitor? monitor,
+  SceneAction action,
+) async {
+  switch (action) {
+    case SceneAction.edit:
+      final result = await showSceneEditor(context, title: 'Edit scene', existing: scene);
+      if (result != null) await controller.saveScene(scene.copyWith(name: result.name, icon: result.icon));
+    case SceneAction.update:
+      if (monitor == null) return;
+      await controller.saveScene(Scene.capture(monitor, id: scene.id, name: scene.name, icon: scene.icon));
+    case SceneAction.delete:
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: Text('Delete ${scene.name}?'),
+          content: const Text("This scene will be removed from this phone. Your monitor isn't changed."),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Delete')),
+          ],
+        ),
+      );
+      if (confirmed == true) await controller.deleteScene(scene.id);
   }
+}
+
+/// The actions for one scene as a bottom sheet (long-press on the main screen).
+Future<void> showSceneActions(BuildContext context, BridgeController controller, Scene scene, Monitor? monitor) async {
+  HapticFeedback.mediumImpact();
+  final action = await showModalBottomSheet<SceneAction>(
+    context: context,
+    showDragHandle: true,
+    backgroundColor: context.colors.surface,
+    builder: (sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+            child: Text(scene.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+          ),
+          if (monitor != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(describeScene(scene, monitor, controller), style: TextStyle(color: sheet.colors.muted)),
+            ),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Rename or change icon'),
+            onTap: () => Navigator.pop(sheet, SceneAction.edit),
+          ),
+          if (monitor != null)
+            ListTile(
+              leading: const Icon(Icons.save_outlined),
+              title: const Text('Update to current settings'),
+              onTap: () => Navigator.pop(sheet, SceneAction.update),
+            ),
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: sheet.colors.bad),
+            title: Text('Delete', style: TextStyle(color: sheet.colors.bad)),
+            onTap: () => Navigator.pop(sheet, SceneAction.delete),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+
+  if (action != null && context.mounted) await runSceneAction(context, controller, scene, monitor, action);
 }
 
 /// What a scene will do, in words: "40% · Standard · Blue light Level 1".
@@ -74,13 +150,13 @@ String describeScene(Scene scene, Monitor? monitor, BridgeController controller)
     parts.add(named(VcpCodes.colorPreset, values[VcpCodes.colorPreset]!, 'Colour ${values[VcpCodes.colorPreset]}'));
   }
   if (values[VcpCodes.lowBlueLight] != null) {
-    parts.add('Blue light ${named(VcpCodes.lowBlueLight, values[VcpCodes.lowBlueLight]!, '${values[VcpCodes.lowBlueLight]}')}');
+    parts.add(
+      'Blue light ${named(VcpCodes.lowBlueLight, values[VcpCodes.lowBlueLight]!, '${values[VcpCodes.lowBlueLight]}')}',
+    );
   }
 
   return parts.join(' · ');
 }
-
-enum _SceneAction { edit, update, delete }
 
 class _SceneCard extends StatelessWidget {
   const _SceneCard({required this.scene, required this.monitor, required this.controller});
@@ -96,21 +172,20 @@ class _SceneCard extends StatelessWidget {
 
     return Material(
       color: c.surface,
-      borderRadius: BorderRadius.circular(18),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: active ? c.accent : c.line),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: monitor == null
+        onTap: monitor == null || !controller.canControl
             ? null
             : () {
                 HapticFeedback.lightImpact();
                 controller.applyScene(scene);
               },
-        child: Container(
+        child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: active ? c.accent : c.line),
-          ),
           child: Row(
             children: [
               Container(
@@ -130,15 +205,20 @@ class _SceneCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (active) Text('Active', style: TextStyle(color: c.accent, fontSize: 13, fontWeight: FontWeight.w600)),
-              PopupMenuButton<_SceneAction>(
+              if (active)
+                Text(
+                  'Active',
+                  style: TextStyle(color: c.accent, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              PopupMenuButton<SceneAction>(
                 tooltip: 'More for ${scene.name}',
                 icon: Icon(Icons.more_vert, color: c.muted),
-                onSelected: (action) => _onAction(context, action),
+                onSelected: (action) => runSceneAction(context, controller, scene, monitor, action),
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: _SceneAction.edit, child: Text('Rename or change icon')),
-                  if (monitor != null) const PopupMenuItem(value: _SceneAction.update, child: Text('Update to current settings')),
-                  const PopupMenuItem(value: _SceneAction.delete, child: Text('Delete')),
+                  const PopupMenuItem(value: SceneAction.edit, child: Text('Rename or change icon')),
+                  if (monitor != null)
+                    const PopupMenuItem(value: SceneAction.update, child: Text('Update to current settings')),
+                  const PopupMenuItem(value: SceneAction.delete, child: Text('Delete')),
                 ],
               ),
             ],
@@ -146,29 +226,6 @@ class _SceneCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _onAction(BuildContext context, _SceneAction action) async {
-    switch (action) {
-      case _SceneAction.edit:
-        final result = await showSceneEditor(context, title: 'Edit scene', existing: scene);
-        if (result != null) await controller.saveScene(scene.copyWith(name: result.name, icon: result.icon));
-      case _SceneAction.update:
-        await controller.saveScene(Scene.capture(monitor!, id: scene.id, name: scene.name, icon: scene.icon));
-      case _SceneAction.delete:
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialog) => AlertDialog(
-            title: Text('Delete ${scene.name}?'),
-            content: const Text("This scene will be removed from this phone. Your monitor isn't changed."),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
-              TextButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Delete')),
-            ],
-          ),
-        );
-        if (confirmed == true) await controller.deleteScene(scene.id);
-    }
   }
 }
 
@@ -188,7 +245,7 @@ class _AddSceneButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         onTap: enabled ? onPressed : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -295,7 +352,9 @@ class _SceneEditorState extends State<_SceneEditor> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         TextButton(
-          onPressed: _name.text.trim().isEmpty ? null : () => Navigator.pop(context, (name: _name.text.trim(), icon: _icon)),
+          onPressed: _name.text.trim().isEmpty
+              ? null
+              : () => Navigator.pop(context, (name: _name.text.trim(), icon: _icon)),
           child: const Text('Save'),
         ),
       ],

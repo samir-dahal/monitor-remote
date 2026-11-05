@@ -7,20 +7,14 @@ import '../data/bridge_api.dart';
 import '../data/pairing_link.dart';
 
 /// Builds the camera view. Swapped out in tests, where there is no camera.
-typedef ScannerBuilder =
-    Widget Function(BuildContext context, ValueChanged<String> onCode);
+typedef ScannerBuilder = Widget Function(BuildContext context, ValueChanged<String> onCode);
 
-Widget cameraScanner(BuildContext context, ValueChanged<String> onCode) =>
-    _CameraScanner(onCode: onCode);
+Widget cameraScanner(BuildContext context, ValueChanged<String> onCode) => _CameraScanner(onCode: onCode);
 
 /// First-run screen, and the way to switch PCs later: scan the QR code on the PC's
 /// "Pair your phone" page, or type the address and token.
 class PairScreen extends StatefulWidget {
-  const PairScreen({
-    super.key,
-    this.canClose = false,
-    this.scannerBuilder = cameraScanner,
-  });
+  const PairScreen({super.key, this.canClose = false, this.scannerBuilder = cameraScanner});
 
   /// Show a back button. Off on first run, when there is nothing to go back to.
   final bool canClose;
@@ -33,6 +27,7 @@ class PairScreen extends StatefulWidget {
 class _PairScreenState extends State<PairScreen> {
   final _address = TextEditingController();
   final _token = TextEditingController();
+  final _scroll = ScrollController();
 
   bool _busy = false;
   bool _manual = false;
@@ -42,7 +37,23 @@ class _PairScreenState extends State<PairScreen> {
   void dispose() {
     _address.dispose();
     _token.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  /// Opens or closes the manual form. On a small phone it opens below the fold, so scroll to it.
+  void _toggleManual() {
+    setState(() => _manual = !_manual);
+    if (!_manual) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _onCode(String raw) {
@@ -50,10 +61,7 @@ class _PairScreenState extends State<PairScreen> {
 
     final link = PairingLink.tryParseQr(raw);
     if (link == null) {
-      setState(
-        () => _error =
-            "That QR code isn't from BenQ Bridge. Scan the one on your PC's pairing page.",
-      );
+      setState(() => _error = "That QR code isn't from BenQ Bridge. Scan the one on your PC's pairing page.");
       return;
     }
 
@@ -97,13 +105,12 @@ class _PairScreenState extends State<PairScreen> {
       appBar: widget.canClose ? AppBar() : null,
       body: SafeArea(
         child: ListView(
+          controller: _scroll,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           children: [
             Text(
               'Pair your PC',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -121,10 +128,7 @@ class _PairScreenState extends State<PairScreen> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        ColoredBox(
-                          color: c.surface,
-                          child: widget.scannerBuilder(context, _onCode),
-                        ),
+                        ColoredBox(color: c.surface, child: widget.scannerBuilder(context, _onCode)),
                         if (_busy)
                           ColoredBox(
                             color: Colors.black54,
@@ -133,13 +137,7 @@ class _PairScreenState extends State<PairScreen> {
                               children: const [
                                 CircularProgressIndicator(),
                                 SizedBox(height: 12),
-                                Text(
-                                  'Connecting…',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                ),
+                                Text('Connecting…', style: TextStyle(color: Colors.white, fontSize: 16)),
                               ],
                             ),
                           ),
@@ -153,24 +151,14 @@ class _PairScreenState extends State<PairScreen> {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: c.badSoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: c.bad, fontSize: 14, height: 1.4),
-                ),
+                decoration: BoxDecoration(color: c.badSoft, borderRadius: BorderRadius.circular(12)),
+                child: Text(_error!, style: TextStyle(color: c.bad, fontSize: 14, height: 1.4)),
               ),
             ],
             const SizedBox(height: 12),
             TextButton(
-              onPressed: () => setState(() => _manual = !_manual),
-              child: Text(
-                _manual
-                    ? 'Hide manual entry'
-                    : 'Enter the address and token instead',
-              ),
+              onPressed: _toggleManual,
+              child: Text(_manual ? 'Hide manual entry' : 'Enter the address and token instead'),
             ),
             if (_manual) ...[
               const SizedBox(height: 4),
@@ -178,26 +166,17 @@ class _PairScreenState extends State<PairScreen> {
                 controller: _address,
                 keyboardType: TextInputType.url,
                 autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: 'PC address',
-                  hintText: '192.168.1.20:5080',
-                ),
+                decoration: const InputDecoration(labelText: 'PC address', hintText: '192.168.1.20:5080'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _token,
                 autocorrect: false,
                 enableSuggestions: false,
-                decoration: const InputDecoration(
-                  labelText: 'Token',
-                  hintText: 'From the PC\'s pairing page',
-                ),
+                decoration: const InputDecoration(labelText: 'Token', hintText: 'From the PC\'s pairing page'),
               ),
               const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _busy ? null : _submitManual,
-                child: const Text('Connect'),
-              ),
+              FilledButton(onPressed: _busy ? null : _submitManual, child: const Text('Connect')),
             ],
           ],
         ),

@@ -104,12 +104,12 @@ class _Cell extends StatelessWidget {
 
     final Widget content = switch (style) {
       StripStyle.tiles => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (option.icon != null) ...[Icon(option.icon, color: foreground, size: 24), const SizedBox(height: 4)],
-            label,
-          ],
-        ),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (option.icon != null) ...[Icon(option.icon, color: foreground, size: 24), const SizedBox(height: 4)],
+          label,
+        ],
+      ),
       _ => label,
     };
 

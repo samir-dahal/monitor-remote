@@ -1,7 +1,7 @@
-import 'package:benq_bridge/data/bridge_api.dart';
-import 'package:benq_bridge/data/models.dart';
-import 'package:benq_bridge/state/bridge_controller.dart';
-import 'package:benq_bridge/state/scene.dart';
+import 'package:monitor_remote/data/bridge_api.dart';
+import 'package:monitor_remote/data/models.dart';
+import 'package:monitor_remote/state/bridge_controller.dart';
+import 'package:monitor_remote/state/scene.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,7 +52,8 @@ void main() {
     });
 
     test('pairing with a rejected token fails and saves nothing', () async {
-      final api = FakeBridgeApi([sampleMonitor()])..monitorsError = const BridgeException('rejected', unauthorized: true);
+      final api = FakeBridgeApi([sampleMonitor()])
+        ..monitorsError = const BridgeException('rejected', unauthorized: true);
       final rig = await makeRig(api: api, paired: false);
 
       await expectLater(rig.controller.pair(testLink), throwsA(isA<BridgeException>()));
@@ -168,7 +169,10 @@ void main() {
 
       rig.controller.endEdit(VcpCodes.brightness);
       rig.api.push([sampleMonitor(brightness: 10)]);
-      await waitFor(() => rig.controller.monitor!.valueOf(VcpCodes.brightness) == 10, reason: 'released control follows the PC');
+      await waitFor(
+        () => rig.controller.monitor!.valueOf(VcpCodes.brightness) == 10,
+        reason: 'released control follows the PC',
+      );
     });
 
     test('a failed write says so and goes back to what the monitor really has', () async {
@@ -293,6 +297,43 @@ void main() {
 
       expect(reopened.controller.labelFor(monitor, input, input.optionFor(17)!), 'Laptop');
       expect(reopened.controller.themeMode, ThemeMode.light);
+    });
+  });
+
+  group('instant start', () {
+    test('shows the last known monitors at once, but waits for the PC before acting', () async {
+      final api = FakeBridgeApi([sampleMonitor()])..monitorsError = const BridgeException('down');
+      final rig = await makeRig(api: api, snapshot: [sampleMonitor(brightness: 20)]);
+
+      expect(rig.controller.monitor!.valueOf(VcpCodes.brightness), 20, reason: 'from the snapshot');
+      expect(rig.controller.canControl, isFalse);
+    });
+
+    test('controls are enabled once the PC answers', () async {
+      final rig = await makeRig(snapshot: [sampleMonitor(brightness: 20)]);
+
+      await waitFor(() => rig.controller.canControl, reason: 'live');
+      expect(rig.controller.monitor!.valueOf(VcpCodes.brightness), 25, reason: 'the PC wins over the snapshot');
+    });
+
+    test('what the PC reports is saved for next time', () async {
+      final rig = await makeRig();
+      await waitFor(() => rig.controller.linkState == LinkState.live);
+
+      rig.api.push([sampleMonitor(brightness: 18)]);
+      await waitFor(() => rig.storage.loadSnapshot().isNotEmpty, reason: 'snapshot saved');
+      await waitFor(
+        () => rig.storage.loadSnapshot().first.valueOf(VcpCodes.brightness) == 18,
+        reason: 'latest values saved',
+      );
+    });
+
+    test('unpairing forgets the snapshot too', () async {
+      final rig = await makeRig(snapshot: [sampleMonitor()]);
+
+      await rig.controller.unpair();
+
+      expect(rig.storage.loadSnapshot(), isEmpty);
     });
   });
 }

@@ -39,7 +39,7 @@ typedef BridgeApiFactory = BridgeApi Function(PairingLink link);
 
 class HttpBridgeApi implements BridgeApi {
   HttpBridgeApi(this.link, {http.Client? client, this.timeout = const Duration(seconds: 6)})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   final PairingLink link;
   final Duration timeout;
@@ -59,30 +59,31 @@ class HttpBridgeApi implements BridgeApi {
   @override
   Future<void> writeVcp(String monitorId, int code, int value) async {
     final hex = code.toRadixString(16).toUpperCase().padLeft(2, '0');
-    await _send(() => _client.put(
-          _uri('/api/monitors/${Uri.encodeComponent(monitorId)}/vcp/$hex'),
-          headers: {..._headers, 'Content-Type': 'application/json'},
-          body: jsonEncode({'value': value}),
-        ));
+    await _send(
+      () => _client.put(
+        _uri('/api/monitors/${Uri.encodeComponent(monitorId)}/vcp/$hex'),
+        headers: {..._headers, 'Content-Type': 'application/json'},
+        body: jsonEncode({'value': value}),
+      ),
+    );
   }
 
   @override
   Future<void> refresh(String monitorId) async {
-    await _send(() => _client.post(
-          _uri('/api/monitors/${Uri.encodeComponent(monitorId)}/refresh'),
-          headers: _headers,
-        ));
+    await _send(() => _client.post(_uri('/api/monitors/${Uri.encodeComponent(monitorId)}/refresh'), headers: _headers));
   }
 
   @override
   Stream<List<Monitor>> watch() async* {
-    final channel = WebSocketChannel.connect(Uri(
-      scheme: link.baseUrl.scheme == 'https' ? 'wss' : 'ws',
-      host: link.baseUrl.host,
-      port: link.baseUrl.port,
-      path: '/ws',
-      queryParameters: {'token': link.token},
-    ));
+    final channel = WebSocketChannel.connect(
+      Uri(
+        scheme: link.baseUrl.scheme == 'https' ? 'wss' : 'ws',
+        host: link.baseUrl.host,
+        port: link.baseUrl.port,
+        path: '/ws',
+        queryParameters: {'token': link.token},
+      ),
+    );
 
     try {
       await channel.ready.timeout(timeout);

@@ -56,8 +56,7 @@ class PairingLink {
       Uri(scheme: scheme, host: host, port: port ?? defaultPort);
 
   @override
-  bool operator ==(Object other) =>
-      other is PairingLink && other.baseUrl == baseUrl && other.token == token;
+  bool operator ==(Object other) => other is PairingLink && other.baseUrl == baseUrl && other.token == token;
 
   @override
   int get hashCode => Object.hash(baseUrl, token);

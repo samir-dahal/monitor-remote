@@ -2,9 +2,18 @@
 
 Versions follow [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## Monitor Remote for Android 0.1.0 (tag `app-v0.1.0`)
 
-- Android app (Flutter) in `app/`: brightness with − / + buttons, one-tap scenes, names for picture modes, QR pairing, and hold-to-confirm reset. Sliders only move when the handle is dragged.
+First release of the phone app, in `app/`.
+
+- One screen that fits without scrolling: a tall brightness fader that follows the finger and ticks every 5%, − and + for single steps, tiles for blue light, input and picture mode, and scene pills along the bottom.
+- Switching input offers Undo. Picking the current option again sends nothing.
+- Scenes: tap to apply, long-press to rename, update or delete, + to save the current settings. Starts with Work, Night, Movie and Game.
+- Names for options such as picture modes that the monitor only reports as codes.
+- QR pairing, with manual entry as a fallback. The token is kept in the Android Keystore.
+- Opens on the last known values and enables the controls once the PC answers.
+- Factory and colour reset behind a hold-to-confirm button.
+- Built, tested and signed by GitHub Actions when an `app-v*` tag is pushed.
 - The Windows release is unchanged; `app/` is excluded from its build.
 
 ## 0.1.0

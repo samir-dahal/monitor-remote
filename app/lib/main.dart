@@ -8,11 +8,8 @@ import 'state/bridge_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final controller = BridgeController(
-    storage: await AppStorage.open(),
-    apiFactory: HttpBridgeApi.new,
-  );
+  final controller = BridgeController(storage: await AppStorage.open(), apiFactory: HttpBridgeApi.new);
   await controller.start();
 
-  runApp(BenqBridgeApp(controller: controller));
+  runApp(MonitorRemoteApp(controller: controller));
 }

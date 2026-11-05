@@ -1,39 +1,40 @@
-import 'package:benq_bridge/app.dart';
-import 'package:benq_bridge/core/theme.dart';
-import 'package:benq_bridge/data/bridge_api.dart';
-import 'package:benq_bridge/data/models.dart';
-import 'package:benq_bridge/state/bridge_controller.dart';
-import 'package:benq_bridge/ui/widgets/hold_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:monitor_remote/app.dart';
+import 'package:monitor_remote/core/theme.dart';
+import 'package:monitor_remote/data/bridge_api.dart';
+import 'package:monitor_remote/data/models.dart';
+import 'package:monitor_remote/state/bridge_controller.dart';
+import 'package:monitor_remote/ui/widgets/brightness_fader.dart';
+import 'package:monitor_remote/ui/widgets/hold_button.dart';
 
 import 'support/fakes.dart';
 import 'support/rig.dart';
 
 /// A stand-in for the camera: a button that "scans" a pairing link.
 Widget fakeScanner(BuildContext context, ValueChanged<String> onCode) => Center(
-      child: FilledButton(
-        onPressed: () => onCode('http://192.168.2.220:5080/#t=abc123'),
-        child: const Text('Simulate scan'),
-      ),
-    );
+  child: FilledButton(
+    onPressed: () => onCode('http://192.168.2.220:5080/#t=abc123'),
+    child: const Text('Simulate scan'),
+  ),
+);
 
-/// A phone-sized screen. The default test surface is 800 by 600, which hides most of the UI.
-void usePhoneScreen(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1080, 2400);
-  tester.view.devicePixelRatio = 2.75;
+/// A small phone: 360 by 640 logical pixels, the size the app has to fit without scrolling.
+void useSmallPhone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1080, 1920);
+  tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
 }
 
-Future<Rig> pumpPairedApp(WidgetTester tester, {FakeBridgeApi? api}) async {
-  usePhoneScreen(tester);
+Future<Rig> pumpPairedApp(WidgetTester tester, {FakeBridgeApi? api, List<Monitor>? snapshot}) async {
+  useSmallPhone(tester);
   final rig = (await tester.runAsync(() async {
-    final made = await makeRig(api: api, disposeAtEnd: false);
+    final made = await makeRig(api: api, snapshot: snapshot, disposeAtEnd: false);
     await waitFor(() => made.controller.linkState != LinkState.connecting, reason: 'connection result');
     return made;
   }))!;
 
-  await tester.pumpWidget(BenqBridgeApp(controller: rig.controller, scannerBuilder: fakeScanner));
+  await tester.pumpWidget(MonitorRemoteApp(controller: rig.controller, scannerBuilder: fakeScanner));
   await tester.pumpAndSettle();
 
   addTearDown(() async {
@@ -43,268 +44,229 @@ Future<Rig> pumpPairedApp(WidgetTester tester, {FakeBridgeApi? api}) async {
   return rig;
 }
 
+Future<void> openSettings(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Settings'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('first run asks to pair, and a scanned code connects', (tester) async {
-    usePhoneScreen(tester);
-    final rig = (await tester.runAsync(() => makeRig(paired: false, disposeAtEnd: false)))!;
-    await tester.pumpWidget(BenqBridgeApp(controller: rig.controller, scannerBuilder: fakeScanner));
+  group('Pairing', () {
+    testWidgets('first run asks to pair, and a scanned code connects', (tester) async {
+      useSmallPhone(tester);
+      final rig = (await tester.runAsync(() => makeRig(paired: false, disposeAtEnd: false)))!;
+      await tester.pumpWidget(MonitorRemoteApp(controller: rig.controller, scannerBuilder: fakeScanner));
 
-    expect(find.text('Pair your PC'), findsOneWidget);
+      expect(find.text('Pair your PC'), findsOneWidget);
 
-    await tester.tap(find.text('Simulate scan'));
-    await tester.runAsync(() => waitFor(() => rig.controller.linkState == LinkState.live, reason: 'live'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Simulate scan'));
+      await tester.runAsync(() => waitFor(() => rig.controller.linkState == LinkState.live, reason: 'live'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('BenQ GW2490'), findsOneWidget);
-    expect(find.text('25'), findsOneWidget);
+      expect(find.text('BenQ GW2490'), findsOneWidget);
+      expect(find.text('25'), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox());
-    rig.controller.dispose();
+      await tester.pumpWidget(const SizedBox());
+      rig.controller.dispose();
+    });
+
+    testWidgets('a code that is not from BenQ Bridge is refused', (tester) async {
+      useSmallPhone(tester);
+      final rig = (await tester.runAsync(() => makeRig(paired: false, disposeAtEnd: false)))!;
+      await tester.pumpWidget(
+        MonitorRemoteApp(
+          controller: rig.controller,
+          scannerBuilder: (context, onCode) => Center(
+            child: FilledButton(onPressed: () => onCode('https://example.com'), child: const Text('Simulate scan')),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Simulate scan'));
+      await tester.pump();
+
+      expect(find.textContaining("isn't from BenQ Bridge"), findsOneWidget);
+      expect(rig.controller.isPaired, isFalse);
+
+      await tester.pumpWidget(const SizedBox());
+      rig.controller.dispose();
+    });
+
+    testWidgets('a wrong token on the manual form shows the answer from the PC', (tester) async {
+      useSmallPhone(tester);
+      final api = FakeBridgeApi([sampleMonitor()])
+        ..monitorsError = const BridgeException('That token was rejected. Pair again.', unauthorized: true);
+      final rig = (await tester.runAsync(() => makeRig(api: api, paired: false, disposeAtEnd: false)))!;
+      await tester.pumpWidget(MonitorRemoteApp(controller: rig.controller, scannerBuilder: fakeScanner));
+
+      await tester.tap(find.text('Enter the address and token instead'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'PC address'), '192.168.2.220');
+      await tester.enterText(find.widgetWithText(TextField, 'Token'), 'wrong');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Connect'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('That token was rejected. Pair again.'), findsOneWidget);
+      expect(rig.controller.isPaired, isFalse);
+
+      await tester.pumpWidget(const SizedBox());
+      rig.controller.dispose();
+    });
   });
 
-  testWidgets('a code that is not from BenQ Bridge is refused', (tester) async {
-    usePhoneScreen(tester);
-    final rig = (await tester.runAsync(() => makeRig(paired: false, disposeAtEnd: false)))!;
-    await tester.pumpWidget(BenqBridgeApp(
-      controller: rig.controller,
-      scannerBuilder: (context, onCode) => Center(
-        child: FilledButton(onPressed: () => onCode('https://example.com'), child: const Text('Simulate scan')),
-      ),
-    ));
+  group('Remote screen', () {
+    testWidgets('fits every daily control on a small phone without scrolling', (tester) async {
+      await pumpPairedApp(tester);
+      final screen = tester.getRect(find.byType(Scaffold).first);
 
-    await tester.tap(find.text('Simulate scan'));
-    await tester.pump();
+      for (final text in ['Brightness', 'Blue light', 'Input', 'Picture mode', 'Night']) {
+        final rect = tester.getRect(find.text(text).first);
+        expect(screen.contains(rect.center), isTrue, reason: '$text is on screen');
+      }
+      expect(find.byType(SingleChildScrollView), findsNothing, reason: 'no scrolling fallback needed');
+    });
 
-    expect(find.textContaining("isn't from BenQ Bridge"), findsOneWidget);
-    expect(rig.controller.isPaired, isFalse);
-
-    await tester.pumpWidget(const SizedBox());
-    rig.controller.dispose();
-  });
-
-  testWidgets('a wrong token on the manual form shows the PC\'s answer', (tester) async {
-    usePhoneScreen(tester);
-    final api = FakeBridgeApi([sampleMonitor()])
-      ..monitorsError = const BridgeException('That token was rejected. Pair again.', unauthorized: true);
-    final rig = (await tester.runAsync(() => makeRig(api: api, paired: false, disposeAtEnd: false)))!;
-    await tester.pumpWidget(BenqBridgeApp(controller: rig.controller, scannerBuilder: fakeScanner));
-
-    await tester.tap(find.text('Enter the address and token instead'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'PC address'), '192.168.2.220');
-    await tester.enterText(find.widgetWithText(TextField, 'Token'), 'wrong');
-    await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('That token was rejected. Pair again.'), findsOneWidget);
-    expect(rig.controller.isPaired, isFalse);
-
-    await tester.pumpWidget(const SizedBox());
-    rig.controller.dispose();
-  });
-
-  group('Control screen', () {
-    testWidgets('shows the daily controls', (tester) async {
+    testWidgets('tiles show the current value with the full label', (tester) async {
       await pumpPairedApp(tester);
 
-      expect(find.text('Brightness'), findsOneWidget);
-      expect(find.text('Input Source'), findsOneWidget);
-      expect(find.text('Low Blue Light'), findsOneWidget);
-      expect(find.text('Picture Mode'), findsOneWidget);
-      expect(find.text('HDMI-1'), findsWidgets);
+      expect(find.text('Level 1'), findsOneWidget);
+      expect(find.text('HDMI-1'), findsOneWidget);
+      expect(find.text('Standard'), findsOneWidget);
       expect(find.text('Live'), findsOneWidget);
     });
 
-    testWidgets('the plus button raises brightness by one and sends it', (tester) async {
+    testWidgets('dragging the fader down lowers brightness', (tester) async {
       final rig = await pumpPairedApp(tester);
+      final fader = tester.getCenter(find.byType(BrightnessFader));
 
-      await tester.tap(find.byIcon(Icons.add).first);
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('26'), findsOneWidget);
-      expect(rig.api.writes.last, (monitorId: 'DISPLAY4', code: VcpCodes.brightness, value: 26));
-    });
-
-    testWidgets('tapping an option sets it', (tester) async {
-      final rig = await pumpPairedApp(tester);
-
-      await tester.tap(find.text('Level 4'));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(rig.api.writes.last, (monitorId: 'DISPLAY4', code: VcpCodes.lowBlueLight, value: 4));
-    });
-
-    testWidgets('tapping the slider track away from the handle changes nothing', (tester) async {
-      final rig = await pumpPairedApp(tester);
-      final slider = find.byType(Slider).first;
-      final box = tester.getRect(slider);
-
-      // Brightness is 25, so the handle sits near the left. Tap near the right end.
-      await tester.tapAt(Offset(box.right - 30, box.center.dy));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('25'), findsOneWidget);
-      expect(rig.api.writes, isEmpty);
-    });
-
-    testWidgets('dragging the handle changes brightness', (tester) async {
-      // At 50 the handle sits exactly in the middle of the slider.
-      final rig = await pumpPairedApp(tester, api: FakeBridgeApi([sampleMonitor(brightness: 50)]));
-      final centre = tester.getCenter(find.byType(Slider).first);
-
-      final gesture = await tester.startGesture(centre);
-      await tester.pump();
+      final gesture = await tester.startGesture(fader);
       for (var i = 0; i < 4; i++) {
-        await gesture.moveBy(const Offset(20, 0));
+        await gesture.moveBy(const Offset(0, 15));
         await tester.pump();
       }
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(rig.api.writes, isNotEmpty);
-      expect(rig.api.writes.last.value, greaterThan(50));
+      expect(rig.api.writes.last.code, VcpCodes.brightness);
+      expect(rig.api.writes.last.value, lessThan(25));
+      expect(find.text('${rig.api.writes.last.value}'), findsOneWidget);
     });
 
-    testWidgets('a named option shows its name', (tester) async {
+    testWidgets('a tap on the fader changes nothing', (tester) async {
       final rig = await pumpPairedApp(tester);
-      final monitor = rig.controller.monitor!;
+      final box = tester.getRect(find.byType(BrightnessFader));
 
-      await tester.runAsync(() => rig.controller.setLabel(monitor, VcpCodes.pictureMode, 15, 'Reading'));
-      await tester.pump();
-
-      expect(find.text('Reading'), findsOneWidget);
-      expect(find.text('0x0F'), findsNothing);
-    });
-
-    testWidgets('says so when the PC cannot be reached', (tester) async {
-      final api = FakeBridgeApi([sampleMonitor()])..monitorsError = const BridgeException('down');
-      await pumpPairedApp(tester, api: api);
-
-      expect(find.text("Can't reach your PC. Retrying…"), findsOneWidget);
-    });
-  });
-
-  group('Scenes tab', () {
-    testWidgets('tapping a scene applies it', (tester) async {
-      final rig = await pumpPairedApp(tester);
-
-      await tester.tap(find.text('Scenes'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Night'));
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect({for (final w in rig.api.writes) w.code: w.value}, {VcpCodes.brightness: 12, VcpCodes.lowBlueLight: 4});
-    });
-
-    testWidgets('describes what each scene does', (tester) async {
-      await pumpPairedApp(tester);
-
-      await tester.tap(find.text('Scenes'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('12% · Blue light Level 4'), findsOneWidget);
-    });
-  });
-
-  group('Settings tab', () {
-    testWidgets('a reset needs a long press, not a tap', (tester) async {
-      final rig = await pumpPairedApp(tester);
-
-      await tester.tap(find.text('Settings'));
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Reset to factory settings'), 300);
-      await tester.tap(find.text('Reset to factory settings'));
-      await tester.pumpAndSettle();
-
-      await tester.ensureVisible(find.text('Hold to run'));
-      await tester.tap(find.text('Hold to run'));
+      await tester.tapAt(Offset(box.center.dx, box.bottom - 20));
+      await tester.tapAt(Offset(box.center.dx, box.top + 20));
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(rig.api.writes, isEmpty);
+      expect(find.text('25'), findsOneWidget);
     });
-  });
 
-  group('Settings screens', () {
-    testWidgets('a name given in Settings shows up on the Control screen', (tester) async {
+    testWidgets('the minus button lowers brightness by one', (tester) async {
+      final rig = await pumpPairedApp(tester);
+
+      await tester.tap(find.byIcon(Icons.remove));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(rig.api.writes.single, (monitorId: 'DISPLAY4', code: VcpCodes.brightness, value: 24));
+      expect(find.text('24'), findsOneWidget);
+    });
+
+    testWidgets('the blue light tile opens the levels and sets one', (tester) async {
+      final rig = await pumpPairedApp(tester);
+
+      await tester.tap(find.text('Blue light'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('4'));
+      await tester.pumpAndSettle();
+
+      expect(rig.api.writes.single, (monitorId: 'DISPLAY4', code: VcpCodes.lowBlueLight, value: 4));
+      expect(find.text('Level 4'), findsOneWidget, reason: 'sheet closed and the tile updated');
+    });
+
+    testWidgets('choosing the current option again sends nothing', (tester) async {
+      final rig = await pumpPairedApp(tester);
+
+      await tester.tap(find.text('Picture mode'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Standard').last);
+      await tester.pumpAndSettle();
+
+      expect(rig.api.writes, isEmpty);
+    });
+
+    testWidgets('switching input can be undone', (tester) async {
+      final rig = await pumpPairedApp(tester);
+
+      await tester.tap(find.text('Input'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('HDMI-2'));
+      await tester.pumpAndSettle();
+
+      expect(rig.api.writes.last, (monitorId: 'DISPLAY4', code: VcpCodes.inputSource, value: 18));
+      expect(find.text('Switched to HDMI-2'), findsOneWidget);
+
+      await tester.tap(find.text('Undo'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(rig.api.writes.last, (monitorId: 'DISPLAY4', code: VcpCodes.inputSource, value: 17));
+    });
+
+    testWidgets('a picture mode can be renamed from its sheet', (tester) async {
       await pumpPairedApp(tester);
 
-      await tester.tap(find.text('Settings'));
+      await tester.tap(find.text('Picture mode'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Name your options'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('0x0F'));
+      await tester.tap(find.byTooltip('Rename 0x0F'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Reading');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       expect(find.text('Reading'), findsOneWidget);
-      expect(find.text('The monitor calls it 0x0F'), findsOneWidget);
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Control'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Reading'), findsOneWidget);
+      expect(find.text('0x0F'), findsOneWidget, reason: 'the original name stays visible underneath');
     });
 
-    testWidgets('a name can be cleared again', (tester) async {
-      final rig = await pumpPairedApp(tester);
-      final monitor = rig.controller.monitor!;
-      await tester.runAsync(() => rig.controller.setLabel(monitor, VcpCodes.pictureMode, 15, 'Reading'));
-
-      await tester.tap(find.text('Settings'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Name your options'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Reading'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Use original'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('0x0F'), findsOneWidget);
-      expect(rig.controller.customLabel(monitor, VcpCodes.pictureMode, 15), isNull);
-    });
-
-    testWidgets('All controls lists every setting under its category', (tester) async {
-      await pumpPairedApp(tester);
-
-      await tester.tap(find.text('Settings'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('All controls'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Picture'), findsOneWidget);
-      expect(find.text('Eye Care'), findsOneWidget);
-      expect(find.text('Brightness'), findsOneWidget);
-      expect(find.text('Low Blue Light'), findsOneWidget);
-      expect(find.text('Restore Factory Defaults'), findsNothing, reason: 'resets live under Reset, not here');
-    });
-
-    testWidgets('the theme can be switched', (tester) async {
+    testWidgets('a scene pill applies the scene', (tester) async {
       final rig = await pumpPairedApp(tester);
 
-      await tester.tap(find.text('Settings'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Light'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Night'));
+      await tester.pump(const Duration(milliseconds: 200));
 
-      expect(rig.controller.themeMode, ThemeMode.light);
+      expect({for (final w in rig.api.writes) w.code: w.value}, {VcpCodes.brightness: 12, VcpCodes.lowBlueLight: 4});
     });
-  });
 
-  group('Scene editing', () {
-    testWidgets('saving the current settings creates a scene', (tester) async {
+    testWidgets('long-pressing a scene offers to delete it, and asks first', (tester) async {
       final rig = await pumpPairedApp(tester);
 
-      await tester.tap(find.text('Scenes'));
+      await tester.longPress(find.text('Work'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Save current settings as a scene'), 200);
-      await tester.tap(find.text('Save current settings as a scene'));
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Delete Work?'), findsOneWidget);
+      expect(rig.controller.scenes.map((s) => s.name), contains('Work'));
+
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(rig.controller.scenes.map((s) => s.name), isNot(contains('Work')));
+      expect(rig.api.writes, isEmpty, reason: 'editing a scene never touches the monitor');
+    });
+
+    testWidgets('the plus pill saves the current settings as a scene', (tester) async {
+      final rig = await pumpPairedApp(tester);
+
+      await tester.dragUntilVisible(
+        find.byTooltip('Save current settings as a scene'),
+        find.byType(ListView).last,
+        const Offset(-200, 0),
+      );
+      await tester.tap(find.byTooltip('Save current settings as a scene'));
+      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Reading');
       await tester.pump();
       await tester.tap(find.text('Save'));
@@ -316,45 +278,108 @@ void main() {
       expect(created.values.containsKey(VcpCodes.inputSource), isFalse);
     });
 
-    testWidgets('a scene needs a name before it can be saved', (tester) async {
-      final rig = await pumpPairedApp(tester);
-      final before = rig.controller.scenes.length;
+    testWidgets('opens on the last known values and waits for the PC before acting', (tester) async {
+      final api = FakeBridgeApi([sampleMonitor()])..monitorsError = const BridgeException('down');
+      final rig = await pumpPairedApp(tester, api: api, snapshot: [sampleMonitor(brightness: 20)]);
 
-      await tester.tap(find.text('Scenes'));
+      expect(find.text('20'), findsOneWidget, reason: 'cached value shown at once');
+      expect(find.text("Can't reach your PC. Retrying…"), findsOneWidget);
+
+      await tester.drag(find.byType(BrightnessFader), const Offset(0, 80));
+      await tester.tap(find.text('Night'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(rig.api.writes, isEmpty, reason: 'nothing is sent while offline');
+    });
+  });
+
+  group('Settings', () {
+    testWidgets('a name given in Settings shows up on the main screen', (tester) async {
+      await pumpPairedApp(tester);
+
+      await openSettings(tester);
+      await tester.tap(find.text('Name your options'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Save current settings as a scene'), 200);
-      await tester.tap(find.text('Save current settings as a scene'));
+      await tester.tap(find.text('HDMI-1'));
       await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Laptop');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(rig.controller.scenes.length, before);
+      expect(find.text('The monitor calls it HDMI-1'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Laptop'), findsOneWidget);
     });
 
-    testWidgets('deleting a scene asks first', (tester) async {
+    testWidgets('a name can be cleared again', (tester) async {
       final rig = await pumpPairedApp(tester);
+      final monitor = rig.controller.monitor!;
+      await tester.runAsync(() => rig.controller.setLabel(monitor, VcpCodes.pictureMode, 15, 'Reading'));
 
-      await tester.tap(find.text('Scenes'));
+      await openSettings(tester);
+      await tester.tap(find.text('Name your options'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.more_vert).first);
+      await tester.tap(find.text('Reading'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Delete Work?'), findsOneWidget);
-      expect(rig.controller.scenes.map((s) => s.name), contains('Work'), reason: 'not removed until confirmed');
-
-      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.tap(find.text('Use original'));
       await tester.pumpAndSettle();
 
-      expect(rig.controller.scenes.map((s) => s.name), isNot(contains('Work')));
+      expect(rig.controller.customLabel(monitor, VcpCodes.pictureMode, 15), isNull);
     });
 
-    testWidgets('updating a scene captures the current settings', (tester) async {
+    testWidgets('All controls lists every setting under its category', (tester) async {
+      await pumpPairedApp(tester);
+
+      await tester.tap(find.byTooltip('All controls'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Picture'), findsOneWidget);
+      expect(find.text('Eye Care'), findsOneWidget);
+      expect(find.text('Brightness'), findsOneWidget);
+      expect(find.text('Restore Factory Defaults'), findsNothing, reason: 'resets live in Settings');
+    });
+
+    testWidgets('the theme can be switched', (tester) async {
       final rig = await pumpPairedApp(tester);
 
+      await openSettings(tester);
+      await tester.scrollUntilVisible(find.text('Light'), 200);
+      await tester.tap(find.text('Light'));
+      await tester.pumpAndSettle();
+
+      expect(rig.controller.themeMode, ThemeMode.light);
+    });
+
+    testWidgets('a reset needs a long press, not a tap', (tester) async {
+      final rig = await pumpPairedApp(tester);
+
+      await openSettings(tester);
+      await tester.scrollUntilVisible(find.text('Reset to factory settings'), 200);
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reset to factory settings'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Hold to run'), 200);
+      await tester.tap(find.text('Hold to run'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(rig.api.writes, isEmpty);
+    });
+
+    testWidgets('scenes can be managed from Settings', (tester) async {
+      final rig = await pumpPairedApp(tester);
+
+      await openSettings(tester);
       await tester.tap(find.text('Scenes'));
       await tester.pumpAndSettle();
+
+      expect(find.text('12% · Blue light Level 4'), findsOneWidget);
+
       await tester.tap(find.byIcon(Icons.more_vert).first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Update to current settings'));
@@ -367,13 +392,15 @@ void main() {
 
   group('HoldToConfirmButton', () {
     Future<void> pumpButton(WidgetTester tester, void Function() onConfirmed) => tester.pumpWidget(
-          MaterialApp(
-            theme: buildTheme(Brightness.dark),
-            home: Scaffold(
-              body: Center(child: HoldToConfirmButton(label: 'Hold to reset', onConfirmed: onConfirmed)),
-            ),
+      MaterialApp(
+        theme: buildTheme(Brightness.dark),
+        home: Scaffold(
+          body: Center(
+            child: HoldToConfirmButton(label: 'Hold to reset', onConfirmed: onConfirmed),
           ),
-        );
+        ),
+      ),
+    );
 
     testWidgets('fires after the full hold', (tester) async {
       var fired = 0;

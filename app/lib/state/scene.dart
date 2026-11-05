@@ -8,11 +8,11 @@ class Scene {
   const Scene({required this.id, required this.name, required this.icon, required this.values});
 
   factory Scene.fromJson(Map<String, dynamic> json) => Scene(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        icon: json['icon'] as String? ?? 'sparkles',
-        values: (json['values'] as Map<String, dynamic>).map((k, v) => MapEntry(int.parse(k), (v as num).toInt())),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    icon: json['icon'] as String? ?? 'sparkles',
+    values: (json['values'] as Map<String, dynamic>).map((k, v) => MapEntry(int.parse(k), (v as num).toInt())),
+  );
 
   /// What a scene remembers: the settings people change to suit what they're doing.
   static const capturedCodes = [
@@ -28,31 +28,31 @@ class Scene {
 
   /// Scenes a new install starts with. Values a monitor doesn't support are skipped when applied.
   static List<Scene> starters() => const [
-        Scene(
-          id: 'starter-work',
-          name: 'Work',
-          icon: 'briefcase',
-          values: {VcpCodes.brightness: 40, VcpCodes.pictureMode: 0, VcpCodes.lowBlueLight: 1},
-        ),
-        Scene(
-          id: 'starter-night',
-          name: 'Night',
-          icon: 'moon',
-          values: {VcpCodes.brightness: 12, VcpCodes.lowBlueLight: 4},
-        ),
-        Scene(
-          id: 'starter-movie',
-          name: 'Movie',
-          icon: 'movie',
-          values: {VcpCodes.brightness: 30, VcpCodes.pictureMode: 50, VcpCodes.lowBlueLight: 2},
-        ),
-        Scene(
-          id: 'starter-game',
-          name: 'Game',
-          icon: 'gamepad',
-          values: {VcpCodes.brightness: 70, VcpCodes.pictureMode: 40, VcpCodes.lowBlueLight: 0},
-        ),
-      ];
+    Scene(
+      id: 'starter-work',
+      name: 'Work',
+      icon: 'briefcase',
+      values: {VcpCodes.brightness: 40, VcpCodes.pictureMode: 0, VcpCodes.lowBlueLight: 1},
+    ),
+    Scene(
+      id: 'starter-night',
+      name: 'Night',
+      icon: 'moon',
+      values: {VcpCodes.brightness: 12, VcpCodes.lowBlueLight: 4},
+    ),
+    Scene(
+      id: 'starter-movie',
+      name: 'Movie',
+      icon: 'movie',
+      values: {VcpCodes.brightness: 30, VcpCodes.pictureMode: 50, VcpCodes.lowBlueLight: 2},
+    ),
+    Scene(
+      id: 'starter-game',
+      name: 'Game',
+      icon: 'gamepad',
+      values: {VcpCodes.brightness: 70, VcpCodes.pictureMode: 40, VcpCodes.lowBlueLight: 0},
+    ),
+  ];
 
   /// Captures the monitor's current picture settings as a new scene.
   factory Scene.capture(Monitor monitor, {required String id, required String name, required String icon}) {
@@ -99,11 +99,11 @@ class Scene {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'icon': icon,
-        'values': values.map((k, v) => MapEntry(k.toString(), v)),
-      };
+    'id': id,
+    'name': name,
+    'icon': icon,
+    'values': values.map((k, v) => MapEntry(k.toString(), v)),
+  };
 }
 
 /// Key for a name the user gave to one option of one setting on one monitor model.

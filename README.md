@@ -122,13 +122,19 @@ It then checks that the output holds only `BenqBridge.exe` and web assets, scans
 any pairing token found on your machine, and writes `dist\BenqBridge-win-x64.zip` with its
 SHA-256. It uploads nothing; it prints the `gh release create` command for you to run.
 
-## Android app
+## Android app: Monitor Remote
 
-The `app/` folder holds a Flutter app for Android: a proper app instead of the web page, with a
-big brightness control, one-tap scenes, names for picture modes and QR pairing. It uses the same
-HTTP and WebSocket API, so the PC side needs nothing extra. See [app/README.md](app/README.md) to
-build and install it, and [the decision record](docs/adr/0001-flutter-mobile-app.md) for why it is
-Flutter.
+**Monitor Remote** is the phone app for BenQ Bridge, in `app/`. It works with any DDC/CI monitor.
+One screen holds a tall brightness fader, tiles for blue light, input and picture mode, and one-tap
+scenes. You pair it by scanning the QR code on the PC. It uses the same HTTP and WebSocket API, so
+the PC side needs nothing extra.
+
+Download the APK from the
+[Android releases](https://github.com/samir-dahal/benq-bridge/releases?q=app-v&expanded=true)
+(tags start with `app-v`). Those releases are built, tested and signed by GitHub Actions when a tag
+is pushed. See [app/README.md](app/README.md) and the decision records on
+[Flutter](docs/adr/0001-flutter-mobile-app.md) and
+[releases on GitHub](docs/adr/0002-android-releases-on-github-actions.md).
 
 ## HTTP API
 
@@ -215,6 +221,7 @@ Ddc/DdcDevice.cs        one display: serialised read/write/poll
 Ddc/MonitorRegistry.cs  enumeration, polling loop, DTOs
 wwwroot/                mobile UI (vanilla JS, no build step)
 scripts/release.ps1     builds and checks the Windows release zip
-app/                    Android app (Flutter)
+app/                    Monitor Remote, the Android app (Flutter)
+.github/workflows/      Android release on app-v* tags
 docs/adr/               decision records
 ```

@@ -26,3 +26,7 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+# The code is written for wide screens; keep `dart format` from splitting it at 80 columns.
+formatter:
+  page_width: 120

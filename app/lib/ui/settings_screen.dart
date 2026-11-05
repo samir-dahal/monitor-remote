@@ -8,6 +8,7 @@ import '../state/bridge_controller.dart';
 import 'all_controls_screen.dart';
 import 'names_screen.dart';
 import 'pair_screen.dart';
+import 'scenes_screen.dart';
 import 'widgets/feature_controls.dart';
 import 'widgets/hold_button.dart';
 import 'widgets/status_pill.dart';
@@ -21,15 +22,16 @@ class SettingsScreen extends StatelessWidget {
     final controller = BridgeScope.of(context);
     final monitor = controller.monitor;
     final c = context.colors;
-    final actions = [for (final f in monitor?.features ?? const <Feature>[]) if (f.isAction) f];
+    final actions = [
+      for (final f in monitor?.features ?? const <Feature>[])
+        if (f.isAction) f,
+    ];
 
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
-          const Text('Settings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
           SurfaceCard(
             child: Row(
               children: [
@@ -57,9 +59,8 @@ class SettingsScreen extends StatelessWidget {
           OutlinedButton.icon(
             icon: const Icon(Icons.qr_code_scanner),
             label: const Text('Scan QR to pair a PC'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const PairScreen(canClose: true)),
-            ),
+            onPressed: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PairScreen(canClose: true))),
           ),
           const SectionTitle('Monitor'),
           SurfaceCard(
@@ -67,8 +68,14 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 _NavRow(
+                  title: 'Scenes',
+                  subtitle: '${controller.scenes.length} saved',
+                  onTap: () => _open(context, const ScenesScreen()),
+                ),
+                Divider(height: 1, color: c.line),
+                _NavRow(
                   title: 'Name your options',
-                  subtitle: 'Give picture modes and inputs names you recognise',
+                  subtitle: 'Your own names for picture modes and inputs',
                   onTap: () => _open(context, const NamesScreen()),
                 ),
                 Divider(height: 1, color: c.line),
@@ -80,7 +87,7 @@ class SettingsScreen extends StatelessWidget {
                 Divider(height: 1, color: c.line),
                 _NavRow(
                   title: 'Re-read monitor',
-                  subtitle: 'Fetch every value from the monitor again',
+                  subtitle: 'Fetch every value again',
                   onTap: () async {
                     await controller.reread();
                     if (context.mounted) {
@@ -109,7 +116,9 @@ class SettingsScreen extends StatelessWidget {
           ),
           if (actions.isNotEmpty) _ResetSection(actions: actions, controller: controller),
           const SizedBox(height: 28),
-          Center(child: Text('BenQ Bridge $appVersion', style: TextStyle(color: c.muted, fontSize: 13))),
+          Center(
+            child: Text('$appName $appVersion', style: TextStyle(color: c.muted, fontSize: 13)),
+          ),
         ],
       ),
     );
@@ -143,9 +152,11 @@ class _NavRow extends StatelessWidget {
 /// What each reset command does, in plain words.
 const _resetCopy = <int, ({String text, String? warning})>{
   VcpCodes.restoreFactoryDefaults: (
-    text: 'Restores every setting to how the monitor left the factory: picture mode, brightness, '
+    text:
+        'Restores every setting to how the monitor left the factory: picture mode, brightness, '
         'contrast, colour, low blue light, audio and menu language.',
-    warning: "If the factory input isn't the one you use, the picture goes black until you pick "
+    warning:
+        "If the factory input isn't the one you use, the picture goes black until you pick "
         "the input with the monitor's own buttons.",
   ),
   VcpCodes.restoreLuminanceDefaults: (text: 'Restores brightness and contrast to the factory values.', warning: null),
@@ -172,7 +183,10 @@ class _ResetSection extends StatelessWidget {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 4),
           childrenPadding: EdgeInsets.zero,
-          title: Text('Reset to factory settings', style: TextStyle(color: c.bad, fontSize: 14, fontWeight: FontWeight.w700)),
+          title: Text(
+            'Reset to factory settings',
+            style: TextStyle(color: c.bad, fontSize: 14, fontWeight: FontWeight.w700),
+          ),
           iconColor: c.bad,
           collapsedIconColor: c.bad,
           children: [
@@ -216,7 +230,10 @@ class _ResetCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(feature.name, style: TextStyle(color: c.bad, fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(
+            feature.name,
+            style: TextStyle(color: c.bad, fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           if (copy != null) ...[
             const SizedBox(height: 6),
             Text(copy.text, style: TextStyle(color: c.muted, fontSize: 14, height: 1.45)),
@@ -224,16 +241,15 @@ class _ResetCard extends StatelessWidget {
               const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.only(left: 10),
-                decoration: BoxDecoration(border: Border(left: BorderSide(color: c.lamp, width: 3))),
+                decoration: BoxDecoration(
+                  border: Border(left: BorderSide(color: c.lamp, width: 3)),
+                ),
                 child: Text(copy.warning!, style: TextStyle(color: c.lamp, fontSize: 14, height: 1.45)),
               ),
             ],
           ],
           const SizedBox(height: 14),
-          HoldToConfirmButton(
-            label: 'Hold to run',
-            onConfirmed: () => controller.runAction(feature.code),
-          ),
+          HoldToConfirmButton(label: 'Hold to run', onConfirmed: () => controller.runAction(feature.code)),
         ],
       ),
     );

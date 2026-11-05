@@ -20,6 +20,8 @@ class VcpOption {
 
   final int value;
   final String label;
+
+  Map<String, dynamic> toJson() => {'value': value, 'label': label};
 }
 
 /// How a feature is controlled, as reported by the bridge.
@@ -39,19 +41,19 @@ class Feature {
   });
 
   factory Feature.fromJson(Map<String, dynamic> json) => Feature(
-        code: (json['code'] as num).toInt(),
-        name: json['name'] as String,
-        category: json['category'] as String? ?? 'Advanced',
-        kind: _kindFrom(json['kind'] as String?),
-        writable: json['writable'] as bool? ?? false,
-        max: (json['max'] as num?)?.toInt() ?? 0,
-        unit: json['unit'] as String?,
-        value: (json['value'] as num?)?.toInt(),
-        options: [
-          for (final option in (json['options'] as List<dynamic>? ?? const []))
-            VcpOption.fromJson(option as Map<String, dynamic>),
-        ],
-      );
+    code: (json['code'] as num).toInt(),
+    name: json['name'] as String,
+    category: json['category'] as String? ?? 'Advanced',
+    kind: _kindFrom(json['kind'] as String?),
+    writable: json['writable'] as bool? ?? false,
+    max: (json['max'] as num?)?.toInt() ?? 0,
+    unit: json['unit'] as String?,
+    value: (json['value'] as num?)?.toInt(),
+    options: [
+      for (final option in (json['options'] as List<dynamic>? ?? const []))
+        VcpOption.fromJson(option as Map<String, dynamic>),
+    ],
+  );
 
   final int code;
   final String name;
@@ -78,25 +80,37 @@ class Feature {
     return null;
   }
 
+  Map<String, dynamic> toJson() => {
+    'code': code,
+    'name': name,
+    'category': category,
+    'kind': kind.name,
+    'writable': writable,
+    'max': max,
+    if (unit != null) 'unit': unit,
+    if (value != null) 'value': value,
+    'options': [for (final option in options) option.toJson()],
+  };
+
   Feature withValue(int? newValue) => Feature(
-        code: code,
-        name: name,
-        category: category,
-        kind: kind,
-        writable: writable,
-        max: max,
-        unit: unit,
-        value: newValue,
-        options: options,
-      );
+    code: code,
+    name: name,
+    category: category,
+    kind: kind,
+    writable: writable,
+    max: max,
+    unit: unit,
+    value: newValue,
+    options: options,
+  );
 
   static FeatureKind _kindFrom(String? raw) => switch (raw) {
-        'continuous' => FeatureKind.continuous,
-        'discrete' => FeatureKind.discrete,
-        'toggle' => FeatureKind.toggle,
-        'action' => FeatureKind.action,
-        _ => FeatureKind.info,
-      };
+    'continuous' => FeatureKind.continuous,
+    'discrete' => FeatureKind.discrete,
+    'toggle' => FeatureKind.toggle,
+    'action' => FeatureKind.action,
+    _ => FeatureKind.info,
+  };
 }
 
 class Monitor {
@@ -110,16 +124,16 @@ class Monitor {
   });
 
   factory Monitor.fromJson(Map<String, dynamic> json) => Monitor(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? json['id'] as String,
-        model: json['model'] as String? ?? '',
-        supported: json['supported'] as bool? ?? false,
-        ddcChannel: json['ddcChannel'] as bool? ?? false,
-        features: [
-          for (final feature in (json['features'] as List<dynamic>? ?? const []))
-            Feature.fromJson(feature as Map<String, dynamic>),
-        ],
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? json['id'] as String,
+    model: json['model'] as String? ?? '',
+    supported: json['supported'] as bool? ?? false,
+    ddcChannel: json['ddcChannel'] as bool? ?? false,
+    features: [
+      for (final feature in (json['features'] as List<dynamic>? ?? const []))
+        Feature.fromJson(feature as Map<String, dynamic>),
+    ],
+  );
 
   final String id;
   final String name;
@@ -140,14 +154,21 @@ class Monitor {
 
   int? valueOf(int code) => feature(code)?.value;
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'model': model,
+    'supported': supported,
+    'ddcChannel': ddcChannel,
+    'features': [for (final feature in features) feature.toJson()],
+  };
+
   Monitor withFeatureValue(int code, int value) => Monitor(
-        id: id,
-        name: name,
-        model: model,
-        supported: supported,
-        ddcChannel: ddcChannel,
-        features: [
-          for (final feature in features) feature.code == code ? feature.withValue(value) : feature,
-        ],
-      );
+    id: id,
+    name: name,
+    model: model,
+    supported: supported,
+    ddcChannel: ddcChannel,
+    features: [for (final feature in features) feature.code == code ? feature.withValue(value) : feature],
+  );
 }

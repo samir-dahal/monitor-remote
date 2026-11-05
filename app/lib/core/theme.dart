@@ -170,9 +170,18 @@ ThemeData buildTheme(Brightness brightness) {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: c.raised,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.line)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.line)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.accent, width: 1.5)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: c.line),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: c.line),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: c.accent, width: 1.5),
+      ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -181,6 +190,18 @@ ThemeData buildTheme(Brightness brightness) {
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    ),
+    // Material picks the secondary colour (the eye-care amber) for the selected segment otherwise.
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? c.accentSoft : Colors.transparent,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? c.accent : c.text,
+        ),
+        side: WidgetStatePropertyAll(BorderSide(color: c.line)),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -192,8 +213,8 @@ ThemeData buildTheme(Brightness brightness) {
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
       ),
     ),
-    textTheme: Typography.material2021().black.apply(bodyColor: c.text, displayColor: c.text).copyWith(
-          bodyMedium: TextStyle(color: c.text, fontSize: 15),
-        ),
+    textTheme: Typography.material2021().black
+        .apply(bodyColor: c.text, displayColor: c.text)
+        .copyWith(bodyMedium: TextStyle(color: c.text, fontSize: 15)),
   );
 }

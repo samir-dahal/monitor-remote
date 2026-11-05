@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/bridge_scope.dart';
 import '../../core/theme.dart';
@@ -38,12 +37,12 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 22, 4, 10),
-        child: Text(
-          text,
-          style: TextStyle(color: context.colors.muted, fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-      );
+    padding: const EdgeInsets.fromLTRB(4, 22, 4, 10),
+    child: Text(
+      text,
+      style: TextStyle(color: context.colors.muted, fontSize: 14, fontWeight: FontWeight.w700),
+    ),
+  );
 }
 
 /// Name on the left, current value on the right.
@@ -63,7 +62,11 @@ class _CardHeader extends StatelessWidget {
       child: Row(
         children: [
           if (dot != null) ...[
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            ),
             const SizedBox(width: 8),
           ],
           Expanded(
@@ -164,83 +167,6 @@ class SliderCard extends StatelessWidget {
             onChangeStart: () => controller.beginEdit(feature.code),
             onChanged: (v) => controller.setValue(feature.code, v),
             onChangeEnd: () => controller.endEdit(feature.code),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Brightness: the control used most, so it gets the room and steppers for fine changes.
-class BrightnessCard extends StatelessWidget {
-  const BrightnessCard({super.key, required this.feature});
-
-  final Feature feature;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = BridgeScope.of(context);
-    final c = context.colors;
-    final value = feature.value ?? 0;
-    final max = feature.max > 0 ? feature.max : 100;
-
-    void step(int delta) {
-      final next = (value + delta).clamp(0, max);
-      if (next == value) return;
-      HapticFeedback.selectionClick();
-      controller.setValue(feature.code, next);
-    }
-
-    return SurfaceCard(
-      padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(feature.name, style: TextStyle(color: c.muted, fontSize: 14, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 2),
-          Semantics(
-            label: '${feature.name} $value${feature.unit == '%' ? ' percent' : ''}',
-            child: ExcludeSemantics(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '$value',
-                    style: const TextStyle(
-                      fontSize: 68,
-                      fontWeight: FontWeight.w300,
-                      height: 1.05,
-                      letterSpacing: -2,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  if (feature.unit != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Text(feature.unit!, style: TextStyle(color: c.muted, fontSize: 22)),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              StepButton(icon: Icons.remove, label: 'Decrease ${feature.name.toLowerCase()}', onStep: () => step(-1)),
-              Expanded(
-                child: ValueSlider(
-                  value: value,
-                  max: max,
-                  label: feature.name,
-                  large: true,
-                  onChangeStart: () => controller.beginEdit(feature.code),
-                  onChanged: (v) => controller.setValue(feature.code, v),
-                  onChangeEnd: () => controller.endEdit(feature.code),
-                ),
-              ),
-              StepButton(icon: Icons.add, label: 'Increase ${feature.name.toLowerCase()}', onStep: () => step(1)),
-            ],
           ),
         ],
       ),
