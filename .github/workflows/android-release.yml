@@ -2,6 +2,9 @@ name: Android release
 
 # Push a tag such as app-v0.1.0 to build, test, sign and publish the APK.
 # "Run workflow" on the Actions tab builds and tests without publishing.
+#
+# Tests and the APK build run side by side on separate runners; the release is published only
+# when both pass, so a run takes about as long as the slower of the two.
 on:
   push:
     tags:
@@ -15,28 +18,44 @@ concurrency:
   group: android-release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  FLUTTER_VERSION: '3.41.2'
+
 jobs:
-  release:
-    name: Build and publish the APK
+  test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+  build:
+    name: Build and sign the APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
       run:
         working-directory: app
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      apk: ${{ steps.apk.outputs.name }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.2'
-          channel: stable
-          cache: true
 
       - name: Check the tag matches the app version
         id: version
@@ -48,11 +67,22 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            app/android/*.gradle*
+            app/android/**/gradle-wrapper.properties
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
       - run: flutter pub get
-
-      - run: flutter analyze
-
-      - run: flutter test
 
       - name: Set up release signing
         env:
@@ -115,12 +145,22 @@ jobs:
             app/${{ steps.apk.outputs.name }}.sha256
           if-no-files-found: error
 
-      - name: Publish the release
-        if: github.ref_type == 'tag'
+  publish:
+    name: Publish the release
+    if: github.ref_type == 'tag'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: monitor-remote-apk
+
+      - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-          APK: ${{ steps.apk.outputs.name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          APK: ${{ needs.build.outputs.apk }}
         run: |
           sha=$(cut -d' ' -f1 "$APK.sha256")
           {
@@ -140,6 +180,7 @@ jobs:
           } > notes.md
           # Not marked latest, so the README's "latest release" link keeps pointing at the Windows download.
           gh release create "$GITHUB_REF_NAME" "$APK" "$APK.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
             --title "Monitor Remote $VERSION for Android" \
             --notes-file notes.md \
             --latest=false
