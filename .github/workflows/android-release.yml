@@ -81,14 +81,21 @@ jobs:
         run: flutter build apk --release
 
       - name: Check the signature
-        if: github.ref_type == 'tag'
         run: |
           apksigner="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
-          certs=$("$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk)
-          echo "$certs" | grep -E "Signer #1 certificate (DN|SHA-256)"
-          if echo "$certs" | grep -q "CN=Android Debug"; then
-            echo "::error::The APK is signed with a debug key."
+          echo "Using $apksigner"
+          if ! certs=$("$apksigner" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk 2>&1); then
+            echo "$certs"
+            echo "::error::apksigner could not verify the APK."
             exit 1
+          fi
+          echo "$certs" | grep -E "^(Verified using|Signer #1 certificate (DN|SHA-256 digest))" || true
+          if grep -q "CN=Android Debug" <<< "$certs"; then
+            if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+              echo "::error::The APK is signed with a debug key."
+              exit 1
+            fi
+            echo "::warning::Signed with a debug key; fine for a test build, not for a release."
           fi
 
       - name: Name the APK
