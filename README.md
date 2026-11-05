@@ -9,7 +9,7 @@ the same thing internally (`GetPhysicalMonitorsFromHMONITOR`, `GetVCPFeatureAndV
 `SetVCPFeature`) but exposes only a curated subset of what the panel supports.
 
 <p align="center">
-  <img src="docs/screenshot-mobile.jpg" alt="Monitor Remote on Android: a tall brightness fader at 25%, tiles for blue light, input and picture mode, and scene buttons, controlling a BenQ GW2490" width="320">
+  <img src="docs/monitor-remote-android.jpg" alt="Monitor Remote on Android: a tall brightness fader at 25%, tiles for blue light, input and picture mode, and scene buttons, controlling a BenQ GW2490" width="320">
   <br>
   <sub>Monitor Remote, the Android app, controlling a BenQ GW2490</sub>
 </p>

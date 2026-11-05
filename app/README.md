@@ -5,7 +5,7 @@ any monitor that answers DDC/CI, not only BenQ ones. It talks to the same HTTP a
 the web page, so the PC side needs no changes.
 
 <p align="center">
-  <img src="../docs/screenshot-mobile.jpg" alt="Monitor Remote: a tall brightness fader, tiles for blue light, input and picture mode, and scene buttons" width="300">
+  <img src="../docs/monitor-remote-android.jpg" alt="Monitor Remote: a tall brightness fader, tiles for blue light, input and picture mode, and scene buttons" width="300">
 </p>
 
 ## What it does
