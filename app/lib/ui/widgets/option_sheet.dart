@@ -5,6 +5,7 @@ import '../../core/bridge_scope.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../names_screen.dart';
+import 'option_strip.dart';
 
 /// Called when the user picks an option. The default just sets it.
 typedef OptionChosen = void Function(int previous, int chosen);
@@ -36,9 +37,6 @@ Future<void> showOptionSheet(
     ),
   );
 }
-
-/// "Level 3" reads fine in a list but not in a small cell, where "3" says the same.
-String shortLabel(String label) => label.startsWith('Level ') ? label.substring(6) : label;
 
 class _OptionSheet extends StatelessWidget {
   const _OptionSheet({
@@ -85,6 +83,7 @@ class _OptionSheet extends StatelessWidget {
 
     final tint = warm ? c.lamp : c.accent;
     final soft = warm ? c.lampSoft : c.accentSoft;
+    final cellLabels = compactLabels([for (final o in feature.options) controller.labelFor(monitor, feature, o)]);
 
     return SafeArea(
       child: Padding(
@@ -102,7 +101,7 @@ class _OptionSheet extends StatelessWidget {
                     if (i > 0) const SizedBox(width: 8),
                     Expanded(
                       child: _Cell(
-                        label: shortLabel(controller.labelFor(monitor, feature, feature.options[i])),
+                        label: cellLabels[i],
                         selected: feature.options[i].value == feature.value,
                         tint: tint,
                         soft: soft,

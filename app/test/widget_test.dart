@@ -344,6 +344,20 @@ void main() {
       expect(find.text('Restore Factory Defaults'), findsNothing, reason: 'resets live in Settings');
     });
 
+    testWidgets('All controls shows blue light levels as short numbers, not cut-off labels', (tester) async {
+      await pumpPairedApp(tester);
+
+      await tester.tap(find.byTooltip('All controls'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Low Blue Light'), 200);
+      await tester.pumpAndSettle();
+
+      for (final label in ['Off', '1', '2', '3', '4', '5']) {
+        expect(find.text(label), findsWidgets, reason: label);
+      }
+      expect(find.text('Level 1'), findsOneWidget, reason: 'the current value, in full, in the card header');
+    });
+
     testWidgets('the theme can be switched', (tester) async {
       final rig = await pumpPairedApp(tester);
 

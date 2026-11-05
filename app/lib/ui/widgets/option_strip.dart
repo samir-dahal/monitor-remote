@@ -3,6 +3,24 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme.dart';
 
+/// Drops a word every label repeats, so "Off, Level 1 … Level 5" reads "Off, 1 … 5".
+/// The card or sheet title already says what the numbers are.
+List<String> compactLabels(List<String> labels) {
+  final worded = [
+    for (final label in labels)
+      if (label.contains(' ')) label,
+  ];
+  if (worded.length < 2) return labels;
+
+  final firstWord = worded.first.substring(0, worded.first.indexOf(' ') + 1);
+  if (!worded.every((label) => label.startsWith(firstWord))) return labels;
+
+  return [
+    for (final label in labels)
+      label.startsWith(firstWord) && label.length > firstWord.length ? label.substring(firstWord.length) : label,
+  ];
+}
+
 class StripOption {
   const StripOption(this.value, this.label, {this.icon});
 
@@ -41,33 +59,57 @@ class OptionStrip extends StatelessWidget {
   /// Use the amber of the eye-care controls instead of the accent.
   final bool warm;
 
+  static const _labelStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
+
   @override
   Widget build(BuildContext context) {
-    final cells = [
-      for (final option in options)
+    final equalWidth = style != StripStyle.chips;
+    final labels = equalWidth ? compactLabels([for (final o in options) o.label]) : [for (final o in options) o.label];
+
+    List<Widget> cells(StripStyle cellStyle) => [
+      for (var i = 0; i < options.length; i++)
         _Cell(
-          option: option,
-          selected: option.value == selected,
+          option: StripOption(options[i].value, labels[i], icon: options[i].icon),
+          selected: options[i].value == selected,
           warm: warm,
-          style: style,
+          style: cellStyle,
           onTap: () {
             HapticFeedback.selectionClick();
-            onSelected(option.value);
+            onSelected(options[i].value);
           },
         ),
     ];
 
-    if (style == StripStyle.chips) {
-      return Wrap(spacing: 8, runSpacing: 8, children: cells);
-    }
+    if (!equalWidth) return Wrap(spacing: 8, runSpacing: 8, children: cells(StripStyle.chips));
 
-    return Row(
-      children: [
-        for (var i = 0; i < cells.length; i++) ...[
-          if (i > 0) SizedBox(width: style == StripStyle.tiles ? 8 : 4),
-          Expanded(child: cells[i]),
-        ],
-      ],
+    final gap = style == StripStyle.tiles ? 8.0 : 4.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Equal cells only when every label fits whole; otherwise wrap, never cut a label short.
+        final cellWidth = (constraints.maxWidth - gap * (options.length - 1)) / options.length;
+        final scaler = MediaQuery.textScalerOf(context);
+        final fits = labels.every((label) {
+          final painter = TextPainter(
+            text: TextSpan(text: label, style: _labelStyle),
+            textDirection: TextDirection.ltr,
+            textScaler: scaler,
+            maxLines: 1,
+          )..layout();
+          final width = painter.width;
+          painter.dispose();
+          return width + 16 <= cellWidth;
+        });
+
+        if (!fits) return Wrap(spacing: 8, runSpacing: 8, children: cells(StripStyle.chips));
+
+        final row = cells(style);
+        return Row(
+          children: [
+            for (var i = 0; i < row.length; i++) ...[if (i > 0) SizedBox(width: gap), Expanded(child: row[i])],
+          ],
+        );
+      },
     );
   }
 }
@@ -133,7 +175,8 @@ class _Cell extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(minHeight: 48),
               padding: padding,
-              alignment: Alignment.center,
+              // Chips size to their label; a set alignment would stretch them across the Wrap.
+              alignment: style == StripStyle.chips ? null : Alignment.center,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: selected ? tint : Colors.transparent),
