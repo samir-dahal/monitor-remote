@@ -2,6 +2,11 @@
 
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- Android app (Flutter) in `app/`: brightness with − / + buttons, one-tap scenes, names for picture modes, QR pairing, and hold-to-confirm reset. Sliders only move when the handle is dragged.
+- The Windows release is unchanged; `app/` is excluded from its build.
+
 ## 0.1.0
 
 First release.

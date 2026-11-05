@@ -13,7 +13,7 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <!-- The Web SDK ships every project file as content. Keep internal folders out of any
          build or publish, even one run from this working folder instead of a clean clone. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);private-artifacts\**;ai\**;dist\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);private-artifacts\**;ai\**;dist\**;app\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

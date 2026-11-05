@@ -122,6 +122,14 @@ It then checks that the output holds only `BenqBridge.exe` and web assets, scans
 any pairing token found on your machine, and writes `dist\BenqBridge-win-x64.zip` with its
 SHA-256. It uploads nothing; it prints the `gh release create` command for you to run.
 
+## Android app
+
+The `app/` folder holds a Flutter app for Android: a proper app instead of the web page, with a
+big brightness control, one-tap scenes, names for picture modes and QR pairing. It uses the same
+HTTP and WebSocket API, so the PC side needs nothing extra. See [app/README.md](app/README.md) to
+build and install it, and [the decision record](docs/adr/0001-flutter-mobile-app.md) for why it is
+Flutter.
+
 ## HTTP API
 
 All `/api/*` and `/ws` requests need `X-Api-Token: <token>`
@@ -206,4 +214,7 @@ Ddc/VcpCatalog.cs       VCP code -> name/kind/options
 Ddc/DdcDevice.cs        one display: serialised read/write/poll
 Ddc/MonitorRegistry.cs  enumeration, polling loop, DTOs
 wwwroot/                mobile UI (vanilla JS, no build step)
+scripts/release.ps1     builds and checks the Windows release zip
+app/                    Android app (Flutter)
+docs/adr/               decision records
 ```

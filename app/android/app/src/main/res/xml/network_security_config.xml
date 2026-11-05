@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  BenQ Bridge serves plain HTTP on the local network. Android blocks that by default, and its
+  network security config can only allow cleartext per domain name, not per IP range, so it is
+  allowed for the app as a whole. Everything the app talks to is a PC the user paired by QR code.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
